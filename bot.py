@@ -1,7 +1,5 @@
 import asyncio
 from collections import defaultdict
-import hashlib
-import hmac
 import json
 import math
 import secrets
@@ -27,6 +25,7 @@ OCEANGRAM_API = "https://oceanment.2-26-197-16.sslip.io"
 WEBAPP_URL = "https://rubup-borohezh.mia0.amvera.tech"
 OWNER_USERNAME = "rubupgift"
 STARS_PER_GRAM = 100.0
+X2_MAX_DEPOSIT_GRAM = 5000.0
 
 session = AiohttpSession(
     api=TelegramAPIServer.from_base(OCEANGRAM_API)
@@ -107,12 +106,14 @@ async def init_db():
                 username TEXT DEFAULT '',
                 first_name TEXT DEFAULT 'Игрок',
                 balance REAL DEFAULT 0.0,
-                wagered REAL DEFAULT 0.0
+                wagered REAL DEFAULT 0.0,
+                x2_dep_used INTEGER DEFAULT 0
             )
         """)
         for col_sql in [
             "ALTER TABLE users_gram ADD COLUMN username TEXT DEFAULT ''",
             "ALTER TABLE users_gram ADD COLUMN first_name TEXT DEFAULT 'Игрок'",
+            "ALTER TABLE users_gram ADD COLUMN x2_dep_used INTEGER DEFAULT 0",
         ]:
             try:
                 await db.execute(col_sql)
@@ -178,6 +179,15 @@ async def init_db():
         await db.execute("INSERT OR IGNORE INTO settings (key, val) VALUES ('spin_count', '0')")
         await db.commit()
 
+async def is_first_two_eligible(user_id: int) -> bool:
+    async with aiosqlite.connect("oceangram_rubup.db") as db:
+        async with db.execute("SELECT user_id, x2_dep_used FROM users_gram ORDER BY ROWID ASC LIMIT 2") as cur:
+            first_two = await cur.fetchall()
+        for uid, used in first_two:
+            if uid == user_id and int(used or 0) == 0:
+                return True
+    return False
+
 async def record_game_event(user_id: int, game: str, bet: float, mult: float, win: float):
     now = int(time.time())
     async with aiosqlite.connect("oceangram_rubup.db") as db:
@@ -223,7 +233,7 @@ async def resolve_win_chance(standard_chance: float) -> float:
 async def ensure_user(user_id: int, username: str = "", first_name: str = "Игрок") -> dict:
     async with aiosqlite.connect("oceangram_rubup.db") as db:
         await db.execute(
-            "INSERT OR IGNORE INTO users_gram (user_id, username, first_name, balance, wagered) VALUES (?, ?, ?, 0.0, 0.0)",
+            "INSERT OR IGNORE INTO users_gram (user_id, username, first_name, balance, wagered, x2_dep_used) VALUES (?, ?, ?, 0.0, 0.0, 0)",
             (user_id, username or "", first_name or "Игрок")
         )
         if username or first_name:
@@ -245,7 +255,7 @@ async def ensure_user(user_id: int, username: str = "", first_name: str = "Иг�
 
 async def update_balance(user_id: int, delta: float, add_wager: float = 0.0) -> tuple[float, float]:
     async with aiosqlite.connect("oceangram_rubup.db") as db:
-        await db.execute("INSERT OR IGNORE INTO users_gram (user_id, balance, wagered) VALUES (?, 0.0, 0.0)", (user_id,))
+        await db.execute("INSERT OR IGNORE INTO users_gram (user_id, balance, wagered, x2_dep_used) VALUES (?, 0.0, 0.0, 0)", (user_id,))
         if delta < 0:
             cursor = await db.execute(
                 "UPDATE users_gram SET balance = round(balance + ?, 2), wagered = round(wagered + ?, 2) WHERE user_id = ? AND balance >= ?",
@@ -283,6 +293,7 @@ def admin_main_kb(owner: bool = False) -> InlineKeyboardMarkup:
     rows = [
         [InlineKeyboardButton(text="💸 Ласт выводы", callback_data="adm_last_wd")],
         [InlineKeyboardButton(text="💰 Выдать / снять GRAM", callback_data="adm_bal_edit")],
+        [InlineKeyboardButton(text="🎯 Статус X2 первых 2", callback_data="adm_x2_status")],
         [InlineKeyboardButton(text="⚙️ Режим работы", callback_data="adm_chances")],
         [InlineKeyboardButton(text="🎁 Создать промокод", callback_data="adm_promo_new")],
         [InlineKeyboardButton(text="📋 Активные промокоды", callback_data="adm_promo_list")],
@@ -311,7 +322,7 @@ async def cmd_start(message: types.Message):
 
     async with aiosqlite.connect("oceangram_rubup.db") as db:
         await db.execute(
-            "INSERT OR IGNORE INTO users_gram (user_id, username, first_name, balance, wagered) VALUES (?, ?, ?, 0.0, 0.0)",
+            "INSERT OR IGNORE INTO users_gram (user_id, username, first_name, balance, wagered, x2_dep_used) VALUES (?, ?, ?, 0.0, 0.0, 0)",
             (user_id, uname, fname)
         )
         await db.execute("UPDATE users_gram SET username = ?, first_name = ? WHERE user_id = ?", (uname, fname, user_id))
@@ -386,6 +397,28 @@ async def cb_adm_back(call: types.CallbackQuery, state: FSMContext):
     await call.message.edit_text(
         f"👑 <b>Панель управления RubUP</b>\n\nАктивный профиль: <b>{cur}</b>",
         reply_markup=admin_main_kb(owner=is_owner(call.from_user)),
+        parse_mode="HTML"
+    )
+
+@dp.callback_query(F.data == "adm_x2_status")
+async def cb_adm_x2_status(call: types.CallbackQuery):
+    if not await is_admin(call.from_user):
+        return
+    async with aiosqlite.connect("oceangram_rubup.db") as db:
+        async with db.execute("SELECT user_id, username, x2_dep_used FROM users_gram ORDER BY ROWID ASC LIMIT 2") as cur:
+            rows = await cur.fetchall()
+    if not rows:
+        text = "🎯 <b>Первые 2 игрока</b>\n\nПока никто не заходил."
+    else:
+        lines = []
+        for idx, (uid, uname, used) in enumerate(rows, 1):
+            label = f"@{uname}" if uname else f"ID {uid}"
+            st = "❌ Использован / сгорел" if int(used or 0) == 1 else "✅ Активен (следующий деп до 5000 G даст x2)"
+            lines.append(f"{idx}. {label} — {st}")
+        text = "🎯 <b>Бонус X2 на след. депозит (до 5 000 GRAM):</b>\n\n" + "\n".join(lines)
+    await call.message.edit_text(
+        text,
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🔙 Назад", callback_data="adm_back")]]),
         parse_mode="HTML"
     )
 
@@ -535,7 +568,7 @@ async def cb_adm_bal_edit(call: types.CallbackQuery, state: FSMContext):
         return
     await state.set_state(AdminStates.waiting_balance_edit)
     await call.message.edit_text(
-        "💰 <b>Выдача / списание GRAM</b>\n\nВведи ID игрока (или @username) и сумму через пробел:\n<code>123456789 50</code> (выдать)\n<code>123456789 -20</code> (списать)",
+        "💰 <b>Выдача / списание GRAM</b>\n\nВведи ID игрока (или @username) и сумму через пробел:\n<code>123456789 50</code> (депозит)\n<code>123456789 -20</code> (списать)\n\n<i>Примечание: для первых 2 игроков следующий депозит до 5000 GRAM автоматически удваивается (x2) один раз.</i>",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🔙 Отмена", callback_data="adm_back")]]),
         parse_mode="HTML"
     )
@@ -567,15 +600,43 @@ async def msg_bal_edit(message: types.Message, state: FSMContext):
                     await message.answer("❌ Игрок с таким @username не найден в базе.")
                     return
                 uid = r[0]
-        await db.execute("INSERT OR IGNORE INTO users_gram (user_id, balance, wagered) VALUES (?, 0.0, 0.0)", (uid,))
-        await db.execute("UPDATE users_gram SET balance = MAX(0, round(balance + ?, 2)) WHERE user_id = ?", (delta, uid))
+        await db.execute("INSERT OR IGNORE INTO users_gram (user_id, balance, wagered, x2_dep_used) VALUES (?, 0.0, 0.0, 0)", (uid,))
+        await db.commit()
+
+    x2_note = ""
+    actual_delta = delta
+    if delta > 0:
+        eligible = await is_first_two_eligible(uid)
+        if eligible:
+            async with aiosqlite.connect("oceangram_rubup.db") as db:
+                await db.execute("UPDATE users_gram SET x2_dep_used = 1 WHERE user_id = ?", (uid,))
+                await db.commit()
+            if delta <= X2_MAX_DEPOSIT_GRAM:
+                actual_delta = round(delta * 2, 2)
+                x2_note = f"\n🔥 Сработал бонус <b>X2</b> для первых 2 игроков! Начислено <b>{actual_delta} GRAM</b> вместо {delta} GRAM."
+            else:
+                x2_note = f"\n⚠️ Депозит превысил лимит {X2_MAX_DEPOSIT_GRAM} GRAM — бонус X2 не применён и сгорел."
+
+    async with aiosqlite.connect("oceangram_rubup.db") as db:
+        await db.execute("UPDATE users_gram SET balance = MAX(0, round(balance + ?, 2)) WHERE user_id = ?", (actual_delta, uid))
         await db.commit()
         async with db.execute("SELECT balance FROM users_gram WHERE user_id = ?", (uid,)) as cur:
             new_b = (await cur.fetchone())[0]
 
+    if actual_delta > 0:
+        try:
+            bonus_txt = " (с бонусом <b>X2</b>!)" if actual_delta > delta else ""
+            await bot.send_message(
+                chat_id=uid,
+                text=f"💎 Твой баланс пополнен на <b>{actual_delta} GRAM</b>{bonus_txt}\nТекущий баланс: <b>{new_b} GRAM</b>",
+                parse_mode="HTML"
+            )
+        except Exception:
+            pass
+
     await state.clear()
     await message.answer(
-        f"✅ Баланс игрока <code>{uid}</code> обновлён!\nНовый баланс: <b>{new_b} GRAM</b>",
+        f"✅ Баланс игрока <code>{uid}</code> обновлён!{x2_note}\nНовый баланс: <b>{new_b} GRAM</b>",
         reply_markup=admin_main_kb(owner=is_owner(message.from_user)),
         parse_mode="HTML"
     )
