@@ -1,5 +1,7 @@
 import asyncio
 from collections import defaultdict
+import hashlib
+import hmac
 import json
 import math
 import secrets
@@ -10,6 +12,7 @@ import aiosqlite
 from aiogram import Bot, Dispatcher, F, types
 from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.client.telegram import TelegramAPIServer
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import Command, CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -25,7 +28,9 @@ OCEANGRAM_API = "https://oceanment.2-26-197-16.sslip.io"
 WEBAPP_URL = "https://rubup-borohezh.mia0.amvera.tech"
 OWNER_USERNAME = "rubupgift"
 STARS_PER_GRAM = 100.0
-X2_MAX_DEPOSIT_GRAM = 5000.0
+
+# === OCEANGRAM CHECK ===
+OCEANGRAM_CLAIM_REWARD = 5.0  # сколько GRAM давать за подтверждённый юзернейм
 
 session = AiohttpSession(
     api=TelegramAPIServer.from_base(OCEANGRAM_API)
@@ -60,6 +65,7 @@ class AdminStates(StatesGroup):
     waiting_promo_data = State()
     waiting_balance_edit = State()
     waiting_new_admin = State()
+    waiting_oceangram_username = State()  # === OCEANGRAM CHECK ===
 
 def is_owner(user: types.User) -> bool:
     return bool(user and user.username and user.username.lower() == OWNER_USERNAME.lower())
@@ -106,14 +112,12 @@ async def init_db():
                 username TEXT DEFAULT '',
                 first_name TEXT DEFAULT 'Игрок',
                 balance REAL DEFAULT 0.0,
-                wagered REAL DEFAULT 0.0,
-                x2_dep_used INTEGER DEFAULT 0
+                wagered REAL DEFAULT 0.0
             )
         """)
         for col_sql in [
             "ALTER TABLE users_gram ADD COLUMN username TEXT DEFAULT ''",
             "ALTER TABLE users_gram ADD COLUMN first_name TEXT DEFAULT 'Игрок'",
-            "ALTER TABLE users_gram ADD COLUMN x2_dep_used INTEGER DEFAULT 0",
         ]:
             try:
                 await db.execute(col_sql)
@@ -175,18 +179,22 @@ async def init_db():
                 PRIMARY KEY (user_id, code)
             )
         """)
+
+        # === OCEANGRAM CHECK ===
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS oceangram_claims (
+                user_id INTEGER PRIMARY KEY,
+                tg_username TEXT,
+                oceangram_username TEXT,
+                oceangram_user_id INTEGER,
+                rewarded REAL DEFAULT 0.0,
+                claimed_at INTEGER
+            )
+        """)
+
         await db.execute("INSERT OR IGNORE INTO settings (key, val) VALUES ('win_chance', 'mode_1')")
         await db.execute("INSERT OR IGNORE INTO settings (key, val) VALUES ('spin_count', '0')")
         await db.commit()
-
-async def is_first_two_eligible(user_id: int) -> bool:
-    async with aiosqlite.connect("oceangram_rubup.db") as db:
-        async with db.execute("SELECT user_id, x2_dep_used FROM users_gram ORDER BY ROWID ASC LIMIT 2") as cur:
-            first_two = await cur.fetchall()
-        for uid, used in first_two:
-            if uid == user_id and int(used or 0) == 0:
-                return True
-    return False
 
 async def record_game_event(user_id: int, game: str, bet: float, mult: float, win: float):
     now = int(time.time())
@@ -233,7 +241,7 @@ async def resolve_win_chance(standard_chance: float) -> float:
 async def ensure_user(user_id: int, username: str = "", first_name: str = "Игрок") -> dict:
     async with aiosqlite.connect("oceangram_rubup.db") as db:
         await db.execute(
-            "INSERT OR IGNORE INTO users_gram (user_id, username, first_name, balance, wagered, x2_dep_used) VALUES (?, ?, ?, 0.0, 0.0, 0)",
+            "INSERT OR IGNORE INTO users_gram (user_id, username, first_name, balance, wagered) VALUES (?, ?, ?, 0.0, 0.0)",
             (user_id, username or "", first_name or "Игрок")
         )
         if username or first_name:
@@ -255,7 +263,7 @@ async def ensure_user(user_id: int, username: str = "", first_name: str = "Иг�
 
 async def update_balance(user_id: int, delta: float, add_wager: float = 0.0) -> tuple[float, float]:
     async with aiosqlite.connect("oceangram_rubup.db") as db:
-        await db.execute("INSERT OR IGNORE INTO users_gram (user_id, balance, wagered, x2_dep_used) VALUES (?, 0.0, 0.0, 0)", (user_id,))
+        await db.execute("INSERT OR IGNORE INTO users_gram (user_id, balance, wagered) VALUES (?, 0.0, 0.0)", (user_id,))
         if delta < 0:
             cursor = await db.execute(
                 "UPDATE users_gram SET balance = round(balance + ?, 2), wagered = round(wagered + ?, 2) WHERE user_id = ? AND balance >= ?",
@@ -271,6 +279,72 @@ async def update_balance(user_id: int, delta: float, add_wager: float = 0.0) -> 
         await db.commit()
     u = await ensure_user(user_id)
     return u["balance"], u["wagered"]
+
+# === OCEANGRAM CHECK ===
+async def oceangram_user_exists(username: str) -> tuple[bool, str, int]:
+    """
+    Проверяет наличие юзернейма в OceanGram через bot.get_chat.
+    Возвращает (exists, clean_username, ocean_user_id).
+    """
+    clean = (username or "").strip().lstrip("@")
+    if not clean or not clean.replace("_", "").isalnum():
+        return False, clean, 0
+    try:
+        chat = await bot.get_chat(f"@{clean}")
+        real_uname = chat.username or clean
+        return True, real_uname, chat.id
+    except TelegramBadRequest:
+        return False, clean, 0
+    except Exception:
+        return False, clean, 0
+
+async def get_oceangram_claim(user_id: int) -> dict | None:
+    async with aiosqlite.connect("oceangram_rubup.db") as db:
+        async with db.execute(
+            "SELECT tg_username, oceangram_username, oceangram_user_id, rewarded, claimed_at FROM oceangram_claims WHERE user_id = ?",
+            (user_id,)
+        ) as cur:
+            row = await cur.fetchone()
+    if not row:
+        return None
+    return {
+        "tg_username": row[0] or "",
+        "oceangram_username": row[1] or "",
+        "oceangram_user_id": row[2] or 0,
+        "rewarded": round(row[3] or 0.0, 2),
+        "claimed_at": row[4] or 0
+    }
+
+async def claim_oceangram_username(user_id: int, raw_username: str) -> tuple[bool, str, dict | None]:
+    """Проверяет юзернейм в OceanGram и выдаёт граммы один раз."""
+    existing = await get_oceangram_claim(user_id)
+    if existing:
+        return False, f"Ты уже подтвердил юзернейм @{existing['oceangram_username']}", existing
+
+    exists, clean, og_uid = await oceangram_user_exists(raw_username)
+    if not exists:
+        return False, f"Юзернейм @{clean} не найден в OceanGram", None
+
+    # защита: один OG-аккаунт = один клейм
+    async with aiosqlite.connect("oceangram_rubup.db") as db:
+        async with db.execute(
+            "SELECT user_id FROM oceangram_claims WHERE LOWER(oceangram_username) = LOWER(?)",
+            (clean,)
+        ) as cur:
+            if await cur.fetchone():
+                return False, f"Юзернейм @{clean} уже привязан к другому игроку", None
+
+        async with user_locks[user_id]:
+            await db.execute(
+                "INSERT INTO oceangram_claims (user_id, tg_username, oceangram_username, oceangram_user_id, rewarded, claimed_at) VALUES (?, ?, ?, ?, ?, ?)",
+                (user_id, "", clean, og_uid, OCEANGRAM_CLAIM_REWARD, int(time.time()))
+            )
+            await db.commit()
+            new_bal, _ = await update_balance(user_id, OCEANGRAM_CLAIM_REWARD)
+            await record_game_event(user_id, "Бонус OceanGram", 0.0, 0.0, OCEANGRAM_CLAIM_REWARD)
+
+    claim = await get_oceangram_claim(user_id)
+    return True, f"Юзернейм @{clean} подтверждён! Начислено {OCEANGRAM_CLAIM_REWARD} GRAM", claim
 
 def extract_webapp_user(data: dict) -> dict:
     init_data = data.get("initData", "")
@@ -293,7 +367,6 @@ def admin_main_kb(owner: bool = False) -> InlineKeyboardMarkup:
     rows = [
         [InlineKeyboardButton(text="💸 Ласт выводы", callback_data="adm_last_wd")],
         [InlineKeyboardButton(text="💰 Выдать / снять GRAM", callback_data="adm_bal_edit")],
-        [InlineKeyboardButton(text="🎯 Статус X2 первых 2", callback_data="adm_x2_status")],
         [InlineKeyboardButton(text="⚙️ Режим работы", callback_data="adm_chances")],
         [InlineKeyboardButton(text="🎁 Создать промокод", callback_data="adm_promo_new")],
         [InlineKeyboardButton(text="📋 Активные промокоды", callback_data="adm_promo_list")],
@@ -322,7 +395,7 @@ async def cmd_start(message: types.Message):
 
     async with aiosqlite.connect("oceangram_rubup.db") as db:
         await db.execute(
-            "INSERT OR IGNORE INTO users_gram (user_id, username, first_name, balance, wagered, x2_dep_used) VALUES (?, ?, ?, 0.0, 0.0, 0)",
+            "INSERT OR IGNORE INTO users_gram (user_id, username, first_name, balance, wagered) VALUES (?, ?, ?, 0.0, 0.0)",
             (user_id, uname, fname)
         )
         await db.execute("UPDATE users_gram SET username = ?, first_name = ? WHERE user_id = ?", (uname, fname, user_id))
@@ -343,13 +416,41 @@ async def cmd_start(message: types.Message):
         pass
 
     kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🚀 Открыть RubUP", web_app=WebAppInfo(url=personal_url))]
+        [InlineKeyboardButton(text="🚀 Открыть RubUP", web_app=WebAppInfo(url=personal_url))],
+        [InlineKeyboardButton(text="🌊 Подтвердить OceanGram (+5 GRAM)", callback_data="og_claim")]
     ])
     await message.answer(
         "Добро пожаловать в <b>RubUP</b>!\nЖми кнопку ниже, чтобы запустить игру:",
         reply_markup=kb,
         parse_mode="HTML"
     )
+
+@dp.callback_query(F.data == "og_claim")
+async def cb_og_claim(call: types.CallbackQuery, state: FSMContext):
+    # === OCEANGRAM CHECK ===
+    existing = await get_oceangram_claim(call.from_user.id)
+    if existing:
+        await call.answer(f"Уже подтверждён: @{existing['oceangram_username']}", show_alert=True)
+        return
+    await state.set_state(AdminStates.waiting_oceangram_username)
+    await call.message.answer(
+        "🌊 <b>Подтверждение OceanGram</b>\n\nОтправь свой юзернейм в OceanGram (например: <code>@myusername</code> или <code>myusername</code>).\n\nЗа подтверждение начислим <b>5 GRAM</b> один раз.",
+        parse_mode="HTML"
+    )
+
+@dp.message(AdminStates.waiting_oceangram_username)
+async def msg_og_claim(message: types.Message, state: FSMContext):
+    # === OCEANGRAM CHECK ===
+    raw = (message.text or "").strip()
+    if not raw:
+        await message.answer("❌ Отправь юзернейм.")
+        return
+    ok, msg, _ = await claim_oceangram_username(message.from_user.id, raw)
+    await state.clear()
+    if ok:
+        await message.answer(f"✅ {msg}", parse_mode="HTML")
+    else:
+        await message.answer(f"❌ {msg}", parse_mode="HTML")
 
 async def redeem_promo_code(user_id: int, raw_code: str) -> tuple[bool, str, float, float]:
     code = raw_code.strip().upper()[:32]
@@ -397,28 +498,6 @@ async def cb_adm_back(call: types.CallbackQuery, state: FSMContext):
     await call.message.edit_text(
         f"👑 <b>Панель управления RubUP</b>\n\nАктивный профиль: <b>{cur}</b>",
         reply_markup=admin_main_kb(owner=is_owner(call.from_user)),
-        parse_mode="HTML"
-    )
-
-@dp.callback_query(F.data == "adm_x2_status")
-async def cb_adm_x2_status(call: types.CallbackQuery):
-    if not await is_admin(call.from_user):
-        return
-    async with aiosqlite.connect("oceangram_rubup.db") as db:
-        async with db.execute("SELECT user_id, username, x2_dep_used FROM users_gram ORDER BY ROWID ASC LIMIT 2") as cur:
-            rows = await cur.fetchall()
-    if not rows:
-        text = "🎯 <b>Первые 2 игрока</b>\n\nПока никто не заходил."
-    else:
-        lines = []
-        for idx, (uid, uname, used) in enumerate(rows, 1):
-            label = f"@{uname}" if uname else f"ID {uid}"
-            st = "❌ Использован / сгорел" if int(used or 0) == 1 else "✅ Активен (следующий деп до 5000 G даст x2)"
-            lines.append(f"{idx}. {label} — {st}")
-        text = "🎯 <b>Бонус X2 на след. депозит (до 5 000 GRAM):</b>\n\n" + "\n".join(lines)
-    await call.message.edit_text(
-        text,
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🔙 Назад", callback_data="adm_back")]]),
         parse_mode="HTML"
     )
 
@@ -568,7 +647,7 @@ async def cb_adm_bal_edit(call: types.CallbackQuery, state: FSMContext):
         return
     await state.set_state(AdminStates.waiting_balance_edit)
     await call.message.edit_text(
-        "💰 <b>Выдача / списание GRAM</b>\n\nВведи ID игрока (или @username) и сумму через пробел:\n<code>123456789 50</code> (депозит)\n<code>123456789 -20</code> (списать)\n\n<i>Примечание: для первых 2 игроков следующий депозит до 5000 GRAM автоматически удваивается (x2) один раз.</i>",
+        "💰 <b>Выдача / списание GRAM</b>\n\nВведи ID игрока (или @username) и сумму через пробел:\n<code>123456789 50</code> (выдать)\n<code>123456789 -20</code> (списать)",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🔙 Отмена", callback_data="adm_back")]]),
         parse_mode="HTML"
     )
@@ -600,43 +679,15 @@ async def msg_bal_edit(message: types.Message, state: FSMContext):
                     await message.answer("❌ Игрок с таким @username не найден в базе.")
                     return
                 uid = r[0]
-        await db.execute("INSERT OR IGNORE INTO users_gram (user_id, balance, wagered, x2_dep_used) VALUES (?, 0.0, 0.0, 0)", (uid,))
-        await db.commit()
-
-    x2_note = ""
-    actual_delta = delta
-    if delta > 0:
-        eligible = await is_first_two_eligible(uid)
-        if eligible:
-            async with aiosqlite.connect("oceangram_rubup.db") as db:
-                await db.execute("UPDATE users_gram SET x2_dep_used = 1 WHERE user_id = ?", (uid,))
-                await db.commit()
-            if delta <= X2_MAX_DEPOSIT_GRAM:
-                actual_delta = round(delta * 2, 2)
-                x2_note = f"\n🔥 Сработал бонус <b>X2</b> для первых 2 игроков! Начислено <b>{actual_delta} GRAM</b> вместо {delta} GRAM."
-            else:
-                x2_note = f"\n⚠️ Депозит превысил лимит {X2_MAX_DEPOSIT_GRAM} GRAM — бонус X2 не применён и сгорел."
-
-    async with aiosqlite.connect("oceangram_rubup.db") as db:
-        await db.execute("UPDATE users_gram SET balance = MAX(0, round(balance + ?, 2)) WHERE user_id = ?", (actual_delta, uid))
+        await db.execute("INSERT OR IGNORE INTO users_gram (user_id, balance, wagered) VALUES (?, 0.0, 0.0)", (uid,))
+        await db.execute("UPDATE users_gram SET balance = MAX(0, round(balance + ?, 2)) WHERE user_id = ?", (delta, uid))
         await db.commit()
         async with db.execute("SELECT balance FROM users_gram WHERE user_id = ?", (uid,)) as cur:
             new_b = (await cur.fetchone())[0]
 
-    if actual_delta > 0:
-        try:
-            bonus_txt = " (с бонусом <b>X2</b>!)" if actual_delta > delta else ""
-            await bot.send_message(
-                chat_id=uid,
-                text=f"💎 Твой баланс пополнен на <b>{actual_delta} GRAM</b>{bonus_txt}\nТекущий баланс: <b>{new_b} GRAM</b>",
-                parse_mode="HTML"
-            )
-        except Exception:
-            pass
-
     await state.clear()
     await message.answer(
-        f"✅ Баланс игрока <code>{uid}</code> обновлён!{x2_note}\nНовый баланс: <b>{new_b} GRAM</b>",
+        f"✅ Баланс игрока <code>{uid}</code> обновлён!\nНовый баланс: <b>{new_b} GRAM</b>",
         reply_markup=admin_main_kb(owner=is_owner(message.from_user)),
         parse_mode="HTML"
     )
@@ -816,14 +867,33 @@ async def api_user(request: Request):
         async with db.execute("SELECT game, bet, mult, win FROM game_history WHERE user_id = ? ORDER BY id DESC LIMIT 15", (uid,)) as cur:
             my_games = [{"game": r[0], "bet": r[1], "mult": r[2], "win": r[3]} for r in await cur.fetchall()]
 
+    # === OCEANGRAM CHECK ===
+    og_claim = await get_oceangram_claim(uid)
+
     return {
         "user_id": uid,
         "balance": u["balance"],
         "wagered": u["wagered"],
         "withdrawals": my_wds,
         "history": my_games,
-        "admin_username": OWNER_USERNAME
+        "admin_username": OWNER_USERNAME,
+        "oceangram_claim": og_claim
     }
+
+# === OCEANGRAM CHECK ===
+@app.post("/api/oceangram/claim")
+async def api_oceangram_claim(request: Request):
+    data = await request.json()
+    user_obj = extract_webapp_user(data)
+    uid = int(user_obj["id"])
+    username = str(data.get("username", "")).strip()
+    if not username:
+        raise HTTPException(status_code=400, detail="Введи юзернейм OceanGram")
+    ok, msg, claim = await claim_oceangram_username(uid, username)
+    if not ok:
+        raise HTTPException(status_code=400, detail=msg)
+    u = await ensure_user(uid)
+    return {"ok": True, "message": msg, "balance": u["balance"], "oceangram_claim": claim}
 
 @app.post("/api/promo")
 async def api_promo(request: Request):
