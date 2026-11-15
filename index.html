@@ -11,7 +11,7 @@
   input { user-select: auto; }
 
   /* Header */
-  .topbar { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; position: sticky; top: 0; background: rgba(13, 12, 24, 0.86); backdrop-filter: blur(18px); z-index: 35; border-bottom: 1px solid rgba(255,255,255,0.06); }
+  .topbar { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; position: sticky; top: 0; background: rgba(13, 12, 24, 0.88); backdrop-filter: blur(18px); z-index: 35; border-bottom: 1px solid rgba(255,255,255,0.06); }
   .brand { font-size: 23px; font-weight: 900; letter-spacing: -0.6px; display: flex; align-items: center; cursor: pointer; }
   .brand span { background: linear-gradient(135deg, #fde047, #f59e0b); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-style: italic; margin-left: 2px; }
   .top-controls { display: flex; align-items: center; gap: 8px; }
@@ -22,32 +22,25 @@
   .avatar-dot { width: 8px; height: 8px; background: #22c55e; border-radius: 50%; position: absolute; bottom: 0; right: 0; border: 1.5px solid #0d0c18; }
 
   .container { padding: 0 16px; max-width: 460px; margin: 0 auto; }
-  .screen { display: none; animation: slideUp 0.22s ease; }
+  .screen { display: none; animation: slideUp 0.2s ease; }
   .screen.active { display: block; }
   @keyframes slideUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 
-  /* Live Strip */
-  .live-strip { display: flex; gap: 8px; overflow-x: auto; padding: 10px 0 6px; scrollbar-width: none; }
-  .live-strip::-webkit-scrollbar { display: none; }
-  .live-badge { background: rgba(255,255,255,0.05); border-radius: 14px; padding: 6px 11px; display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; white-space: nowrap; border: 1px solid rgba(255,255,255,0.07); }
-  .live-dot { width: 6px; height: 6px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 8px #22c55e; }
-
   /* Games Hub */
-  .sec-title { font-size: 22px; font-weight: 800; margin: 8px 0 14px; letter-spacing: -0.3px; }
+  .sec-title { font-size: 22px; font-weight: 800; margin: 14px 0 14px; letter-spacing: -0.3px; }
   .games-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
-  .game-card { border-radius: 24px; padding: 15px; height: 186px; position: relative; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; cursor: pointer; border: 1px solid rgba(255,255,255,0.12); transition: transform 0.15s; box-shadow: 0 12px 28px rgba(0,0,0,0.35); }
+  .game-card { border-radius: 24px; padding: 16px; height: 180px; position: relative; display: flex; flex-direction: column; justify-content: flex-end; overflow: hidden; cursor: pointer; border: 1px solid rgba(255,255,255,0.12); transition: transform 0.15s; box-shadow: 0 12px 28px rgba(0,0,0,0.35); }
   .game-card:active { transform: scale(0.96); }
+  .game-card.wide { grid-column: 1 / -1; height: 148px; }
   .gc-upgrade { background: linear-gradient(155deg, #4c1d95 0%, #1e1b4b 100%); }
   .gc-crash { background: linear-gradient(155deg, #0369a1 0%, #172554 100%); }
   .gc-mines { background: linear-gradient(155deg, #701a75 0%, #2e1065 100%); }
-  .gc-cases { background: linear-gradient(155deg, #b45309 0%, #451a03 100%); }
-  .online-pill { background: rgba(13, 12, 24, 0.55); backdrop-filter: blur(8px); padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; gap: 5px; width: fit-content; z-index: 2; }
   .gc-art { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; filter: drop-shadow(0 12px 20px rgba(0,0,0,0.5)); }
-  .gc-art svg { width: 88px; height: 88px; }
-  .gc-name { font-size: 19px; font-weight: 800; z-index: 2; text-shadow: 0 2px 10px rgba(0,0,0,0.6); }
+  .gc-art svg { width: 84px; height: 84px; }
+  .gc-name { font-size: 20px; font-weight: 800; z-index: 2; text-shadow: 0 2px 10px rgba(0,0,0,0.6); }
 
   /* Subheader */
-  .game-top { display: flex; align-items: center; justify-content: space-between; margin: 6px 0 12px; }
+  .game-top { display: flex; align-items: center; justify-content: space-between; margin: 12px 0 12px; }
   .btn-back { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); color: #e2e8f0; font-weight: 700; font-size: 13px; padding: 7px 13px; border-radius: 12px; cursor: pointer; }
   .game-badge-title { font-size: 18px; font-weight: 800; }
 
@@ -98,20 +91,8 @@
   .mine-cell.boom { background: rgba(239, 68, 68, 0.25); border-color: #ef4444; }
   .mine-cell.dim { opacity: 0.45; }
 
-  /* Cases */
-  .roulette-box { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.09); border-radius: 18px; height: 96px; position: relative; overflow: hidden; margin-bottom: 12px; display: flex; align-items: center; }
-  .roulette-pin { position: absolute; top: 0; bottom: 0; left: 50%; width: 3px; background: #fde047; z-index: 5; transform: translateX(-50%); box-shadow: 0 0 10px #fde047; }
-  .roulette-track { display: flex; gap: 8px; padding-left: 50%; transition: transform 3.4s cubic-bezier(0.12, 0.85, 0.22, 1); will-change: transform; }
-  .r-item { width: 76px; height: 76px; background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12); border-radius: 14px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; }
-  .r-item span { font-size: 10px; color: #38bdf8; margin-top: 2px; }
-  .cases-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-  .case-card { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.09); border-radius: 18px; padding: 14px; text-align: center; cursor: pointer; }
-  .case-card.active { border-color: #8b5cf6; background: rgba(139, 92, 246, 0.16); }
-  .case-title { font-size: 15px; font-weight: 800; margin-top: 6px; }
-  .case-price { font-size: 12px; color: #38bdf8; font-weight: 700; margin-top: 2px; }
-
   /* Profile */
-  .prof-card { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.09); border-radius: 24px; padding: 18px; margin-bottom: 12px; }
+  .prof-card { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.09); border-radius: 24px; padding: 18px; margin-top: 12px; margin-bottom: 12px; }
   .prof-bal-lbl { text-align: center; font-size: 13px; color: #94a3b8; }
   .prof-bal-val { text-align: center; font-size: 36px; font-weight: 900; margin: 4px 0 16px; display: flex; align-items: center; justify-content: center; gap: 8px; }
   .prof-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px; }
@@ -134,25 +115,28 @@
   .hist-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.07); font-size: 12px; }
   .hist-row:last-child { border-bottom: none; }
 
-  /* Bottom Nav (3 clean tabs) */
-  .bottom-nav { position: fixed; bottom: 12px; left: 16px; right: 16px; max-width: 428px; margin: 0 auto; background: rgba(22, 20, 40, 0.9); backdrop-filter: blur(18px); border: 1px solid rgba(255,255,255,0.1); border-radius: 24px; padding: 6px; display: grid; grid-template-columns: repeat(3, 1fr); z-index: 40; box-shadow: 0 10px 30px rgba(0,0,0,0.45); }
+  /* Bottom Nav (2 clean tabs) */
+  .bottom-nav { position: fixed; bottom: 12px; left: 16px; right: 16px; max-width: 428px; margin: 0 auto; background: rgba(22, 20, 40, 0.92); backdrop-filter: blur(18px); border: 1px solid rgba(255,255,255,0.1); border-radius: 24px; padding: 6px; display: grid; grid-template-columns: 1fr 1fr; z-index: 40; box-shadow: 0 10px 30px rgba(0,0,0,0.45); }
   .nav-item { text-align: center; padding: 11px 4px; border-radius: 18px; font-size: 13px; font-weight: 700; color: #94a3b8; cursor: pointer; }
   .nav-item.active { background: rgba(255,255,255,0.1); color: #fff; }
 
   /* Modals */
   .modal { display: none; position: fixed; inset: 0; background: rgba(8, 7, 16, 0.85); backdrop-filter: blur(8px); z-index: 50; align-items: flex-end; justify-content: center; }
-  .modal-sheet { background: #19172e; border-top: 1px solid rgba(255,255,255,0.12); border-radius: 26px 26px 0 0; width: 100%; max-width: 460px; padding: 20px; max-height: 85vh; overflow-y: auto; }
+  .modal-sheet { background: #19172e; border-top: 1px solid rgba(255,255,255,0.12); border-radius: 26px 26px 0 0; width: 100%; max-width: 460px; padding: 20px; max-height: 88vh; overflow-y: auto; }
   .m-title { font-size: 19px; font-weight: 800; text-align: center; margin-bottom: 4px; }
   .m-sub { font-size: 12px; color: #94a3b8; text-align: center; margin-bottom: 14px; }
   .stars-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
   .star-btn { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 14px; padding: 11px 6px; color: #fff; font-weight: 800; font-size: 14px; cursor: pointer; text-align: center; }
   .star-btn small { display: block; color: #38bdf8; font-size: 11px; margin-top: 2px; }
+  .transfer-box { background: rgba(139, 92, 246, 0.14); border: 1px solid rgba(139, 92, 246, 0.45); border-radius: 16px; padding: 14px; text-align: center; margin-bottom: 12px; }
+  .transfer-box b { font-size: 16px; color: #fff; display: block; margin-bottom: 4px; }
+  .transfer-box span { font-size: 12px; color: #cbd5e1; }
   .curr-switch { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
   .curr-btn { background: rgba(13, 12, 24, 0.7); border: 1.5px solid rgba(255,255,255,0.1); color: #94a3b8; font-weight: 800; padding: 11px; border-radius: 12px; cursor: pointer; text-align: center; font-size: 14px; }
   .curr-btn.active { border-color: #8b5cf6; background: rgba(139, 92, 246, 0.18); color: #fff; }
   .wd-field { width: 100%; background: rgba(13, 12, 24, 0.7); border: 1px solid rgba(255,255,255,0.12); border-radius: 14px; padding: 13px 14px; color: #fff; font-size: 14px; font-weight: 600; outline: none; margin-bottom: 10px; }
   .btn-close { width: 100%; background: rgba(255,255,255,0.08); border: none; color: #cbd5e1; font-weight: 700; padding: 12px; border-radius: 14px; cursor: pointer; margin-top: 6px; }
-  .btn-tg-link { display: block; width: 100%; background: linear-gradient(135deg, #8b5cf6, #6366f1); color: #fff; text-align: center; text-decoration: none; font-weight: 800; padding: 14px; border-radius: 14px; margin: 12px 0 8px; }
+  .btn-tg-link { display: block; width: 100%; background: linear-gradient(135deg, #8b5cf6, #6366f1); color: #fff; text-align: center; text-decoration: none; font-weight: 800; padding: 14px; border-radius: 14px; margin: 10px 0 6px; }
 </style>
 </head>
 <body>
@@ -173,43 +157,27 @@
 </div>
 
 <div class="container">
-  <!-- LIVE FEED -->
-  <div class="live-strip" id="liveStrip">
-    <div class="live-badge"><span class="live-dot"></span> LIVE</div>
-    <div class="live-badge">Загрузка...</div>
-  </div>
-
   <!-- SCREEN 1: GAMES HUB -->
   <div class="screen active" id="scr-games">
     <div class="sec-title">Игры</div>
     <div class="games-grid">
       <div class="game-card gc-upgrade" onclick="switchTab('upgrade')">
-        <div class="online-pill"><span class="live-dot"></span> 357 играют</div>
         <div class="gc-art">
           <svg viewBox="0 0 64 64"><defs><linearGradient id="g_u1" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#fde047"/><stop offset="100%" stop-color="#d97706"/></linearGradient></defs><polygon points="32,8 50,24 44,54 20,54 14,24" fill="url(#g_u1)"/><polygon points="32,8 40,24 32,54 24,24" fill="#fff" opacity="0.45"/></svg>
         </div>
         <div class="gc-name">Апгрейд</div>
       </div>
       <div class="game-card gc-crash" onclick="switchTab('crash')">
-        <div class="online-pill"><span class="live-dot"></span> 184 играют</div>
         <div class="gc-art">
           <svg viewBox="0 0 64 64"><defs><linearGradient id="g_u3" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#f8fafc"/><stop offset="100%" stop-color="#94a3b8"/></linearGradient></defs><path d="M52 12C38 12 24 22 17 39L25 47C42 40 52 26 52 12Z" fill="url(#g_u3)"/><path d="M14 50L10 54L18 52L14 50Z" fill="#f59e0b"/><circle cx="35" cy="29" r="5" fill="#38bdf8"/></svg>
         </div>
         <div class="gc-name">Ракетка</div>
       </div>
-      <div class="game-card gc-mines" onclick="switchTab('mines')">
-        <div class="online-pill"><span class="live-dot"></span> 92 играют</div>
+      <div class="game-card gc-mines wide" onclick="switchTab('mines')">
         <div class="gc-art">
           <svg viewBox="0 0 64 64"><defs><linearGradient id="g_u2" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#a5f3fc"/><stop offset="100%" stop-color="#818cf8"/></linearGradient></defs><polygon points="34,6 14,36 30,36 26,58 50,26 34,26" fill="url(#g_u2)"/></svg>
         </div>
         <div class="gc-name">Шторм 5×5</div>
-      </div>
-      <div class="game-card gc-cases" onclick="switchTab('cases')">
-        <div class="online-pill"><span class="live-dot"></span> 1 550 играют</div>
-        <div class="gc-art">
-          <svg viewBox="0 0 64 64"><defs><linearGradient id="g_gb" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#fbbf24"/><stop offset="100%" stop-color="#d97706"/></linearGradient></defs><rect x="12" y="26" width="40" height="30" rx="5" fill="url(#g_gb)"/><rect x="9" y="19" width="46" height="9" rx="3" fill="#fcd34d"/><rect x="28" y="19" width="8" height="37" fill="#f43f5e"/></svg>
-        </div>
-        <div class="gc-name">Кейсы</div>
       </div>
     </div>
   </div>
@@ -355,25 +323,7 @@
     <button class="btn-action-main" id="minesBtn" onclick="handleMinesBtn()">Начать игру</button>
   </div>
 
-  <!-- SCREEN 5: CASES -->
-  <div class="screen" id="scr-cases">
-    <div class="game-top">
-      <button class="btn-back" onclick="switchTab('games')">← Назад</button>
-      <div class="game-badge-title">Кейсы</div>
-      <div style="width:64px;"></div>
-    </div>
-
-    <div class="roulette-box">
-      <div class="roulette-pin"></div>
-      <div class="roulette-track" id="rouletteTrack"></div>
-    </div>
-
-    <button class="btn-action-main" id="openCaseBtn" onclick="spinSelectedCase()" style="margin-bottom:14px;">Открыть кейс за 1 GRAM</button>
-
-    <div class="cases-list" id="casesList"></div>
-  </div>
-
-  <!-- SCREEN 6: PROFILE -->
+  <!-- SCREEN 5: PROFILE -->
   <div class="screen" id="scr-profile">
     <div class="prof-card">
       <div class="prof-bal-lbl">Баланс</div>
@@ -400,16 +350,8 @@
       <div style="font-size:17px; font-weight:800;">Промокод</div>
       <div class="promo-form">
         <input type="text" id="promoInp" class="promo-inp" placeholder="Ваш код">
-        <button class="promo-btn" onclick="activatePromo()">Активировать</button>
+        <button class="promo-btn" id="promoBtn" onclick="activatePromo()">Активировать</button>
       </div>
-    </div>
-
-    <div class="card-box" style="display:flex; justify-content:space-between; align-items:center;">
-      <div>
-        <div style="font-size:16px; font-weight:800;">Рефералы (5% с депозитов)</div>
-        <div style="font-size:12px; color:#94a3b8; margin-top:2px;">Друзей: <b id="refCount" style="color:#fff;">0</b> • Заработано: <b id="refEarned" style="color:#38bdf8;">0.00 G</b></div>
-      </div>
-      <button class="btn-p-dep" style="padding:10px 14px; font-size:13px;" onclick="inviteFriend()">Пригласить</button>
     </div>
 
     <div class="card-box">
@@ -424,33 +366,36 @@
   </div>
 </div>
 
-<!-- Bottom Navigation -->
+<!-- Bottom Navigation (2 tabs) -->
 <div class="bottom-nav">
   <div class="nav-item active" id="nav-games" onclick="switchTab('games')">Игры</div>
-  <div class="nav-item" id="nav-upgrade" onclick="switchTab('upgrade')">Крафт</div>
   <div class="nav-item" id="nav-profile" onclick="switchTab('profile')">Профиль</div>
 </div>
 
-<!-- Modal: Topup (with Custom Stars Amount) -->
+<!-- Modal: Topup (Transfer to @rubupgift) -->
 <div class="modal" id="topupModal">
   <div class="modal-sheet">
     <div class="m-title">Пополнение баланса</div>
-    <div class="m-sub">Курс: 100 Stars = 1 GRAM</div>
+    <div class="m-sub">Курс: 1 GRAM = 100 звёзд</div>
     <div class="stars-grid">
-      <button class="star-btn" onclick="buyStars(100)">100 Stars<small>1 GRAM</small></button>
-      <button class="star-btn" onclick="buyStars(250)">250 Stars<small>2.5 GRAM</small></button>
-      <button class="star-btn" onclick="buyStars(500)">500 Stars<small>5 GRAM</small></button>
-      <button class="star-btn" onclick="buyStars(1000)">1000 Stars<small>10 GRAM</small></button>
-      <button class="star-btn" onclick="buyStars(2500)">2500 Stars<small>25 GRAM</small></button>
-      <button class="star-btn" onclick="buyStars(5000)">5000 Stars<small>50 GRAM</small></button>
+      <button class="star-btn" onclick="selectTopupGram(1)">1 GRAM<small>100 звёзд</small></button>
+      <button class="star-btn" onclick="selectTopupGram(5)">5 GRAM<small>500 звёзд</small></button>
+      <button class="star-btn" onclick="selectTopupGram(10)">10 GRAM<small>1000 звёзд</small></button>
+      <button class="star-btn" onclick="selectTopupGram(25)">25 GRAM<small>2500 звёзд</small></button>
+      <button class="star-btn" onclick="selectTopupGram(40)">40 GRAM<small>4000 звёзд</small></button>
+      <button class="star-btn" onclick="selectTopupGram(100)">100 GRAM<small>10000 звёзд</small></button>
     </div>
-    <input type="number" id="customStarsInp" class="wd-field" placeholder="Своя сумма в Stars (от 10)" min="10" max="100000" oninput="updateCustomTopupLabel()">
-    <button class="btn-action-main" id="customTopupBtn" onclick="buyCustomStars()">Пополнить на 100 Stars (1.00 GRAM)</button>
+    <input type="number" id="customGramDepInp" class="wd-field" value="40" step="0.1" min="0.1" placeholder="Своя сумма в GRAM" oninput="updateTopupInstruction()">
+    <div class="transfer-box">
+      <b id="transferHeadline">Передайте @rubupgift 40 GRAM или 4000 звёзд</b>
+      <span>После передачи напишите в личку для моментального зачисления на баланс</span>
+    </div>
+    <a id="topupTgLink" href="https://t.me/rubupgift" target="_blank" class="btn-tg-link">Перейти к @rubupgift</a>
     <button class="btn-close" onclick="closeModal('topupModal')">Закрыть</button>
   </div>
 </div>
 
-<!-- Modal: Withdraw (Custom Amount + Transaction ID) -->
+<!-- Modal: Withdraw -->
 <div class="modal" id="withdrawModal">
   <div class="modal-sheet">
     <div class="m-title">Вывод средств</div>
@@ -481,6 +426,17 @@
   const tg = window.Telegram.WebApp;
   tg.expand();
 
+  function notifyUser(msg) {
+    try { tg.showAlert(msg); } catch (e) { alert(msg); }
+  }
+
+  function getAuthPayload(extra = {}) {
+    return Object.assign({
+      initData: tg.initData || "",
+      user: (tg.initDataUnsafe && tg.initDataUnsafe.user) ? tg.initDataUnsafe.user : null
+    }, extra);
+  }
+
   function haptic(style = 'light') {
     try { tg.HapticFeedback.impactOccurred(style); } catch (e) {}
   }
@@ -492,18 +448,12 @@
   let isSpinning = false;
   let wdCurrency = "GRAM";
   let adminUsername = "rubupgift";
-  let botUsername = "";
-  let userId = 0;
 
   let crashTarget = 2.0;
   let crashRunning = false;
 
   let minesBombs = 3;
   let minesActive = false;
-
-  let casesData = [];
-  let selectedCaseId = "starter";
-  let caseSpinning = false;
 
   function switchTab(tab) {
     haptic('light');
@@ -570,30 +520,11 @@
       const res = await fetch('/api/user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ initData: tg.initData })
+        body: JSON.stringify(getAuthPayload())
       });
       const data = await res.json();
       if (data.balance !== undefined) setBalanceUI(data.balance, data.wagered);
-      if (data.refs !== undefined) document.getElementById('refCount').innerText = data.refs;
-      if (data.ref_earned !== undefined) document.getElementById('refEarned').innerText = data.ref_earned.toFixed(2) + ' G';
       if (data.admin_username) adminUsername = data.admin_username;
-      if (data.bot_username) botUsername = data.bot_username;
-      if (data.user_id) userId = data.user_id;
-
-      if (data.live_drops) {
-        const strip = document.getElementById('liveStrip');
-        if (data.live_drops.length) {
-          strip.innerHTML = `<div class="live-badge"><span class="live-dot"></span> LIVE</div>` +
-            data.live_drops.map(d => `<div class="live-badge">${d.name} • <b>${d.win} G</b> (${d.mult}x)</div>`).join('');
-        } else {
-          strip.innerHTML = `<div class="live-badge"><span class="live-dot"></span> LIVE</div><div class="live-badge">Будь первым в ленте выигрышей!</div>`;
-        }
-      }
-
-      if (data.cases) {
-        casesData = data.cases;
-        renderCasesList();
-      }
 
       if (data.withdrawals && data.withdrawals.length) {
         document.getElementById('myWithdrawalsList').innerHTML = data.withdrawals.map(w => `
@@ -651,7 +582,7 @@
   async function playUpgrade() {
     if (isSpinning) return;
     const bet = parseFloat(document.getElementById('betInput').value);
-    if (!bet || bet < 0.05) return tg.showAlert('Минимальная ставка 0.05 GRAM');
+    if (!bet || bet < 0.05) return notifyUser('Минимальная ставка 0.05 GRAM');
 
     isSpinning = true;
     document.getElementById('playBtn').disabled = true;
@@ -662,11 +593,11 @@
       const res = await fetch('/api/upgrade', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ initData: tg.initData, bet: bet, multiplier: currentMult })
+        body: JSON.stringify(getAuthPayload({ bet: bet, multiplier: currentMult }))
       });
       const data = await res.json();
       if (!res.ok) {
-        tg.showAlert(data.detail || 'Ошибка');
+        notifyUser(data.detail || 'Ошибка');
         isSpinning = false;
         document.getElementById('playBtn').disabled = false;
         return;
@@ -697,7 +628,7 @@
         loadUser();
       }, 3300);
     } catch (e) {
-      tg.showAlert('Ошибка соединения');
+      notifyUser('Ошибка соединения с сервером');
       isSpinning = false;
       document.getElementById('playBtn').disabled = false;
     }
@@ -755,7 +686,7 @@
   async function playCrash() {
     if (crashRunning) return;
     const bet = parseFloat(document.getElementById('crashBetInp').value);
-    if (!bet || bet < 0.05) return tg.showAlert('Минимальная ставка 0.05 GRAM');
+    if (!bet || bet < 0.05) return notifyUser('Минимальная ставка 0.05 GRAM');
 
     crashRunning = true;
     document.getElementById('crashBtn').disabled = true;
@@ -765,11 +696,11 @@
       const res = await fetch('/api/crash', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ initData: tg.initData, bet: bet, target_mult: crashTarget })
+        body: JSON.stringify(getAuthPayload({ bet: bet, target_mult: crashTarget }))
       });
       const data = await res.json();
       if (!res.ok) {
-        tg.showAlert(data.detail || 'Ошибка');
+        notifyUser(data.detail || 'Ошибка');
         crashRunning = false;
         document.getElementById('crashBtn').disabled = false;
         return;
@@ -807,7 +738,7 @@
         }
       }, 45);
     } catch (e) {
-      tg.showAlert('Ошибка сети');
+      notifyUser('Ошибка сети');
       crashRunning = false;
       document.getElementById('crashBtn').disabled = false;
     }
@@ -840,32 +771,32 @@
         const res = await fetch('/api/mines/cashout', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ initData: tg.initData })
+          body: JSON.stringify(getAuthPayload())
         });
         const data = await res.json();
-        if (!res.ok) return tg.showAlert(data.detail || 'Ошибка');
+        if (!res.ok) return notifyUser(data.detail || 'Ошибка');
         minesActive = false;
         setBalanceUI(data.balance);
         revealBombs(data.bombs);
         haptic('heavy');
         document.getElementById('minesBtn').innerText = 'Начать игру';
-        tg.showAlert(`Выигрыш: +${data.win_amount.toFixed(2)} GRAM!`);
+        notifyUser(`Выигрыш: +${data.win_amount.toFixed(2)} GRAM!`);
         loadUser();
       } catch (e) {}
       return;
     }
 
     const bet = parseFloat(document.getElementById('minesBetInp').value);
-    if (!bet || bet < 0.05) return tg.showAlert('Минимальная ставка 0.05 GRAM');
+    if (!bet || bet < 0.05) return notifyUser('Минимальная ставка 0.05 GRAM');
 
     try {
       const res = await fetch('/api/mines/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ initData: tg.initData, bet: bet, bombs: minesBombs })
+        body: JSON.stringify(getAuthPayload({ bet: bet, bombs: minesBombs }))
       });
       const data = await res.json();
-      if (!res.ok) return tg.showAlert(data.detail || 'Ошибка');
+      if (!res.ok) return notifyUser(data.detail || 'Ошибка');
 
       buildMinesGrid();
       minesActive = true;
@@ -874,7 +805,7 @@
       document.getElementById('minesNextMult').innerText = data.next_mult + 'x';
       document.getElementById('minesBtn').innerText = 'Забрать (открой ячейку)';
     } catch (e) {
-      tg.showAlert('Ошибка сети');
+      notifyUser('Ошибка сети');
     }
   }
 
@@ -887,7 +818,7 @@
       const res = await fetch('/api/mines/step', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ initData: tg.initData, cell: idx })
+        body: JSON.stringify(getAuthPayload({ cell: idx }))
       });
       const data = await res.json();
       if (!res.ok) return;
@@ -910,7 +841,7 @@
           setBalanceUI(data.balance);
           revealBombs(data.bombs);
           document.getElementById('minesBtn').innerText = 'Начать игру';
-          tg.showAlert(`Поле пройдено! +${data.win_amount} GRAM`);
+          notifyUser(`Поле пройдено! +${data.win_amount} GRAM`);
           loadUser();
         } else {
           document.getElementById('minesNextMult').innerText = data.next_mult + 'x';
@@ -930,88 +861,9 @@
     }
   }
 
-  // --- CASES LOGIC ---
-  function renderCasesList() {
-    const list = document.getElementById('casesList');
-    list.innerHTML = casesData.map(c => {
-      const active = c.id === selectedCaseId ? 'active' : '';
-      return `
-        <div class="case-card ${active}" onclick="selectCase('${c.id}')">
-          <div style="font-size:32px;">📦</div>
-          <div class="case-title">${c.name}</div>
-          <div class="case-price">${c.price} GRAM</div>
-        </div>
-      `;
-    }).join('');
-    populateRoulette();
-  }
-
-  function selectCase(id) {
-    if (caseSpinning) return;
-    selectedCaseId = id;
-    const cfg = casesData.find(c => c.id === id);
-    renderCasesList();
-    if (cfg) {
-      document.getElementById('openCaseBtn').innerText = `Открыть за ${cfg.price} GRAM`;
-    }
-  }
-
-  function populateRoulette(winVal) {
-    const cfg = casesData.find(c => c.id === selectedCaseId) || { drops: [0.5, 1, 2, 5] };
-    const track = document.getElementById('rouletteTrack');
-    track.style.transition = 'none';
-    track.style.transform = 'translateX(0px)';
-    let items = [];
-    for (let i = 0; i < 40; i++) {
-      const v = (i === 32 && winVal !== undefined) ? winVal : cfg.drops[Math.floor(Math.random() * cfg.drops.length)];
-      items.push(`<div class="r-item">${v} G<span>GRAM</span></div>`);
-    }
-    track.innerHTML = items.join('');
-  }
-
-  async function spinSelectedCase() {
-    if (caseSpinning) return;
-    caseSpinning = true;
-    document.getElementById('openCaseBtn').disabled = true;
-
-    try {
-      const res = await fetch('/api/case/open', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ initData: tg.initData, case_id: selectedCaseId })
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        tg.showAlert(data.detail || 'Ошибка');
-        caseSpinning = false;
-        document.getElementById('openCaseBtn').disabled = false;
-        return;
-      }
-
-      populateRoulette(data.won);
-      const track = document.getElementById('rouletteTrack');
-      void track.offsetWidth;
-      track.style.transition = 'transform 3.4s cubic-bezier(0.12, 0.85, 0.22, 1)';
-      const offset = -(32 * 84 + 38);
-      track.style.transform = `translateX(${offset}px)`;
-
-      setTimeout(() => {
-        setBalanceUI(data.balance, data.wagered);
-        haptic('heavy');
-        tg.showAlert(`Выпало: +${data.won} GRAM!`);
-        caseSpinning = false;
-        document.getElementById('openCaseBtn').disabled = false;
-        loadUser();
-      }, 3500);
-    } catch (e) {
-      tg.showAlert('Ошибка сети');
-      caseSpinning = false;
-      document.getElementById('openCaseBtn').disabled = false;
-    }
-  }
-
-  // --- TOPUP, WITHDRAW, PROMO ---
+  // --- TOPUP (TRANSFER TO @rubupgift) ---
   function openTopup() {
+    updateTopupInstruction();
     document.getElementById('topupModal').style.display = 'flex';
   }
   function openWithdraw() {
@@ -1021,18 +873,20 @@
     document.getElementById(id).style.display = 'none';
   }
 
-  function updateCustomTopupLabel() {
-    const st = parseInt(document.getElementById('customStarsInp').value) || 100;
-    const gr = (st / 100).toFixed(2);
-    document.getElementById('customTopupBtn').innerText = `Пополнить на ${st} Stars (${gr} GRAM)`;
+  function selectTopupGram(gramVal) {
+    document.getElementById('customGramDepInp').value = gramVal;
+    updateTopupInstruction();
   }
 
-  function buyCustomStars() {
-    const st = parseInt(document.getElementById('customStarsInp').value);
-    if (!st || st < 10 || st > 100000) return tg.showAlert('Введи от 10 до 100 000 Stars');
-    buyStars(st);
+  function updateTopupInstruction() {
+    const gram = parseFloat(document.getElementById('customGramDepInp').value) || 40;
+    const stars = Math.round(gram * 100);
+    document.getElementById('transferHeadline').innerText = `Передайте @${adminUsername} ${gram} GRAM или ${stars} звёзд`;
+    const msg = encodeURIComponent(`Привет! Хочу пополнить баланс RubUP на ${gram} GRAM (${stars} звёзд).`);
+    document.getElementById('topupTgLink').href = `https://t.me/${adminUsername}?text=${msg}`;
   }
 
+  // --- WITHDRAW & PROMO ---
   function setWdCurr(curr) {
     wdCurrency = curr;
     document.getElementById('curr-GRAM').classList.toggle('active', curr === 'GRAM');
@@ -1045,8 +899,8 @@
   async function submitWithdraw() {
     const amount = parseFloat(document.getElementById('wdAmountInp').value);
     const txDetails = document.getElementById('wdTxInp').value.trim();
-    if (!amount || amount <= 0) return tg.showAlert('Укажи сумму вывода');
-    if (!txDetails) return tg.showAlert('Впиши номер транзакции или реквизиты');
+    if (!amount || amount <= 0) return notifyUser('Укажи сумму вывода');
+    if (!txDetails) return notifyUser('Впиши номер транзакции или реквизиты');
 
     const btn = document.getElementById('btnSubmitWd');
     btn.disabled = true;
@@ -1055,11 +909,11 @@
       const res = await fetch('/api/withdraw', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ initData: tg.initData, currency: wdCurrency, amount: amount, tx_details: txDetails })
+        body: JSON.stringify(getAuthPayload({ currency: wdCurrency, amount: amount, tx_details: txDetails }))
       });
       const data = await res.json();
       btn.disabled = false;
-      if (!res.ok) return tg.showAlert(data.detail || 'Ошибка вывода');
+      if (!res.ok) return notifyUser(data.detail || 'Ошибка вывода');
 
       setBalanceUI(data.balance);
       document.getElementById('wdAmountInp').value = '';
@@ -1073,57 +927,36 @@
       loadUser();
     } catch (e) {
       btn.disabled = false;
-      tg.showAlert('Ошибка сети');
+      notifyUser('Ошибка сети');
     }
   }
 
   async function activatePromo() {
     const code = document.getElementById('promoInp').value.trim();
-    if (!code) return tg.showAlert('Введи промокод');
+    if (!code) return notifyUser('Введи промокод');
+    const btn = document.getElementById('promoBtn');
+    btn.disabled = true;
     try {
       const res = await fetch('/api/promo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ initData: tg.initData, code: code })
+        body: JSON.stringify(getAuthPayload({ code: code }))
       });
       const data = await res.json();
-      if (!res.ok) return tg.showAlert(data.detail || 'Ошибка');
+      btn.disabled = false;
+      if (!res.ok) return notifyUser(data.detail || 'Промокод не найден');
       setBalanceUI(data.balance);
       document.getElementById('promoInp').value = '';
-      tg.showAlert(data.message);
+      notifyUser('✅ ' + data.message);
     } catch (e) {
-      tg.showAlert('Ошибка сети');
-    }
-  }
-
-  function inviteFriend() {
-    if (!botUsername || !userId) return;
-    const link = `https://t.me/${botUsername}?start=ref_${userId}`;
-    const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent('Залетай в RubUP!')}`;
-    tg.openTelegramLink(shareUrl);
-  }
-
-  async function buyStars(stars) {
-    closeModal('topupModal');
-    try {
-      const res = await fetch('/api/create_invoice', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ initData: tg.initData, stars: stars })
-      });
-      const data = await res.json();
-      if (data.invoice_link) {
-        tg.openInvoice(data.invoice_link, function(status) {
-          if (status === 'paid') setTimeout(loadUser, 1000);
-        });
-      }
-    } catch (e) {
-      tg.showAlert('Не удалось создать счёт');
+      btn.disabled = false;
+      notifyUser('Ошибка сети');
     }
   }
 
   recalc();
   drawCrashScene(1.0, false);
+  updateTopupInstruction();
   loadUser();
 </script>
 </body>
