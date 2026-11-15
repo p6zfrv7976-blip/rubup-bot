@@ -24,32 +24,9 @@ import uvicorn
 
 BOT_TOKEN = "1780246830:TqjCrlBhmwucsYl-bfkJmY5bUr5r52bdOlD"
 OCEANGRAM_API = "https://oceanment.2-26-197-16.sslip.io"
-WEBAPP_URL = "https://rubpro-borohezh.mia0.amvera.tech"
+WEBAPP_URL = "https://rubup-borohezh.mia0.amvera.tech"
 ADMIN_USERNAME = "rubupgift"
-STARS_PER_GRAM = 100.0  # 100 звезд = 1 GRAM
-
-NFT_CATALOG = [
-    {"id": "heart_box", "name": "Сердце", "price": 0.15, "icon": "💝", "default_stock": True},
-    {"id": "teddy_bear", "name": "Мишка", "price": 0.15, "icon": "🧸", "default_stock": True},
-    {"id": "gift_box", "name": "Коробка", "price": 0.25, "icon": "🎁", "default_stock": True},
-    {"id": "red_rose", "name": "Роза", "price": 0.25, "icon": "🌹", "default_stock": True},
-    {"id": "cake_50", "name": "Торт", "price": 0.50, "icon": "🎂", "default_stock": True},
-    {"id": "rocket_50", "name": "Ракета", "price": 0.50, "icon": "🚀", "default_stock": True},
-    {"id": "trophy_100", "name": "Кубок", "price": 1.00, "icon": "🏆", "default_stock": True},
-    {"id": "diamond_100", "name": "Алмаз", "price": 1.00, "icon": "💎", "default_stock": True},
-    {"id": "ring_100", "name": "Кольцо", "price": 1.00, "icon": "💍", "default_stock": True},
-    {"id": "voodoo_doll", "name": "Кукла Вуду", "price": 2.50, "icon": "🪆", "default_stock": True},
-    {"id": "crystal_ball", "name": "Магический шар", "price": 3.50, "icon": "🔮", "default_stock": True},
-    {"id": "love_potion", "name": "Зелье любви", "price": 4.00, "icon": "🧪", "default_stock": False},
-    {"id": "skull_flower", "name": "Цветок-череп", "price": 5.00, "icon": "🌺", "default_stock": True},
-    {"id": "vintage_cigar", "name": "Сигара", "price": 7.50, "icon": "🚬", "default_stock": False},
-    {"id": "astral_shard", "name": "Астральный осколок", "price": 10.00, "icon": "💠", "default_stock": True},
-    {"id": "neko_helmet", "name": "Шлем Неко", "price": 15.00, "icon": "🪖", "default_stock": False},
-    {"id": "sharp_tongue", "name": "Губы (Sharp Tongue)", "price": 20.00, "icon": "👄", "default_stock": False},
-    {"id": "black_cat", "name": "Чёрный кот", "price": 25.00, "icon": "🐈‍⬛", "default_stock": False},
-    {"id": "ion_gem", "name": "Перстень с сапфиром", "price": 35.00, "icon": "💍", "default_stock": False},
-    {"id": "birkin_bag", "name": "Сумка (Loot Bag)", "price": 50.00, "icon": "👜", "default_stock": False},
-]
+STARS_PER_GRAM = 100.0
 
 session = AiohttpSession(
     api=TelegramAPIServer.from_base(OCEANGRAM_API)
@@ -60,7 +37,7 @@ app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[WEBAPP_URL],
+    allow_origins=["*"],
     allow_methods=["GET", "POST"],
     allow_headers=["Content-Type"],
 )
@@ -98,10 +75,14 @@ async def init_db():
             )
         """)
         await db.execute("""
-            CREATE TABLE IF NOT EXISTS inventory (
+            CREATE TABLE IF NOT EXISTS withdrawals (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER,
-                nft_id TEXT
+                username TEXT,
+                currency TEXT,
+                amount REAL,
+                tx_details TEXT,
+                created_at INTEGER
             )
         """)
         await db.execute("""
@@ -124,48 +105,9 @@ async def init_db():
                 PRIMARY KEY (user_id, code)
             )
         """)
-        await db.execute("""
-            CREATE TABLE IF NOT EXISTS nft_stock (
-                nft_id TEXT PRIMARY KEY,
-                in_stock INTEGER
-            )
-        """)
         await db.execute("INSERT OR IGNORE INTO settings (key, val) VALUES ('win_chance', 'mode_1')")
         await db.execute("INSERT OR IGNORE INTO settings (key, val) VALUES ('spin_count', '0')")
-        for item in NFT_CATALOG:
-            await db.execute(
-                "INSERT OR IGNORE INTO nft_stock (nft_id, in_stock) VALUES (?, ?)",
-                (item["id"], 1 if item["default_stock"] else 0)
-            )
         await db.commit()
-
-async def get_nft_list():
-    async with aiosqlite.connect("oceangram_rubup.db") as db:
-        async with db.execute("SELECT nft_id, in_stock FROM nft_stock") as cursor:
-            stock_map = dict(await cursor.fetchall())
-    result = []
-    for item in NFT_CATALOG:
-        result.append({
-            "id": item["id"],
-            "name": item["name"],
-            "price": item["price"],
-            "icon": item["icon"],
-            "in_stock": bool(stock_map.get(item["id"], 0))
-        })
-    return result
-
-async def get_user_inventory(user_id: int):
-    nfts = {n["id"]: n for n in await get_nft_list()}
-    async with aiosqlite.connect("oceangram_rubup.db") as db:
-        async with db.execute("SELECT id, nft_id FROM inventory WHERE user_id = ? ORDER BY id DESC", (user_id,)) as cursor:
-            rows = await cursor.fetchall()
-    inv = []
-    for row_id, nft_id in rows:
-        if nft_id in nfts:
-            item = dict(nfts[nft_id])
-            item["inv_id"] = row_id
-            inv.append(item)
-    return inv
 
 async def next_spin_number() -> int:
     async with aiosqlite.connect("oceangram_rubup.db") as db:
@@ -234,8 +176,8 @@ def verify_telegram_webapp(init_data: str) -> dict:
 
 def admin_main_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="💸 Ласт выводы", callback_data="adm_last_wd")],
         [InlineKeyboardButton(text="⚙️ Режим работы", callback_data="adm_chances")],
-        [InlineKeyboardButton(text="🖼 Наличие NFT", callback_data="adm_nft")],
         [InlineKeyboardButton(text="🎁 Создать промокод", callback_data="adm_promo_new")],
         [InlineKeyboardButton(text="📋 Активные промокоды", callback_data="adm_promo_list")],
         [InlineKeyboardButton(text="📢 Рассылка", callback_data="adm_broadcast")],
@@ -363,34 +305,33 @@ async def cb_adm_back(call: types.CallbackQuery, state: FSMContext):
         parse_mode="HTML"
     )
 
-@dp.callback_query(F.data == "adm_nft")
-async def cb_adm_nft(call: types.CallbackQuery):
+@dp.callback_query(F.data == "adm_last_wd")
+async def cb_adm_last_wd(call: types.CallbackQuery):
     if not is_admin(call.from_user):
         return
-    nfts = await get_nft_list()
-    rows = []
-    for n in nfts:
-        status = "✅" if n["in_stock"] else "❌"
-        rows.append([InlineKeyboardButton(
-            text=f"{status} {n['icon']} {n['name']} ({n['price']} GRAM)",
-            callback_data=f"tog_nft_{n['id']}"
-        )])
-    rows.append([InlineKeyboardButton(text="🔙 Назад", callback_data="adm_back")])
+    async with aiosqlite.connect("oceangram_rubup.db") as db:
+        async with db.execute(
+            "SELECT id, user_id, username, currency, amount, tx_details FROM withdrawals ORDER BY id DESC LIMIT 15"
+        ) as cursor:
+            rows = await cursor.fetchall()
+
+    if not rows:
+        text = "💸 <b>Ласт выводы</b>\n\nЗаявок на вывод пока нет."
+    else:
+        lines = []
+        for wid, uid, uname, curr, amt, tx in rows:
+            u_str = f"@{uname}" if uname and uname != "без_юза" else f"ID:{uid}"
+            lines.append(f"#{wid} | {u_str} | <b>{amt} {curr}</b>\n└ Транзакция/реквизиты: <code>{tx}</code>")
+        text = "💸 <b>Последние 15 выводов:</b>\n\n" + "\n\n".join(lines)
+
     await call.message.edit_text(
-        "🖼 <b>Наличие NFT</b>\n\nНажми на позицию, чтобы изменить статус:",
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=rows),
+        text,
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="🔄 Обновить", callback_data="adm_last_wd")],
+            [InlineKeyboardButton(text="🔙 Назад", callback_data="adm_back")]
+        ]),
         parse_mode="HTML"
     )
-
-@dp.callback_query(F.data.startswith("tog_nft_"))
-async def cb_tog_nft(call: types.CallbackQuery):
-    if not is_admin(call.from_user):
-        return
-    nft_id = call.data.replace("tog_nft_", "")
-    async with aiosqlite.connect("oceangram_rubup.db") as db:
-        await db.execute("UPDATE nft_stock SET in_stock = 1 - in_stock WHERE nft_id = ?", (nft_id,))
-        await db.commit()
-    await cb_adm_nft(call)
 
 @dp.callback_query(F.data == "adm_chances")
 async def cb_adm_chances(call: types.CallbackQuery):
@@ -568,6 +509,7 @@ async def successful_payment_handler(message: types.Message):
     await message.answer(f"✅ Оплата {stars_paid} ⭐️ прошла!\nНачислено: <b>{gram_to_add} GRAM</b>\nБаланс: <b>{new_bal} GRAM</b>", parse_mode="HTML")
 
 @app.get("/", response_class=HTMLResponse)
+@app.get("/rubup", response_class=HTMLResponse)
 async def serve_webapp(request: Request):
     client_ip = request.client.host if request.client else "unknown"
     check_rate_limit(f"web_{client_ip}", max_calls=30, window=10.0)
@@ -582,16 +524,12 @@ async def api_user(request: Request):
     user_obj = verify_telegram_webapp(data.get("initData", ""))
     user_id = int(user_obj["id"])
     bal, wagered, refs = await get_user_data(user_id)
-    nfts = await get_nft_list()
-    inv = await get_user_inventory(user_id)
     bot_me = await bot.get_me()
     return {
         "user_id": user_id,
         "balance": bal,
         "wagered": wagered,
         "refs": refs,
-        "nfts": nfts,
-        "inventory": inv,
         "admin_username": ADMIN_USERNAME,
         "bot_username": bot_me.username
     }
@@ -609,37 +547,50 @@ async def api_promo(request: Request):
         raise HTTPException(status_code=400, detail=msg)
     return {"ok": True, "message": msg, "balance": new_bal}
 
-@app.post("/api/withdraw_nft")
-async def api_withdraw_nft(request: Request):
+@app.post("/api/withdraw")
+async def api_withdraw(request: Request):
     client_ip = request.client.host if request.client else "unknown"
     check_rate_limit(f"wd_{client_ip}", max_calls=6, window=10.0)
     data = await request.json()
     user_obj = verify_telegram_webapp(data.get("initData", ""))
     user_id = int(user_obj["id"])
     username = user_obj.get("username", "без_юза")
-    nft_id = str(data.get("nft_id", ""))[:40]
-    inv_id = data.get("inv_id")
+
+    currency = str(data.get("currency", "GRAM")).upper()
+    if currency not in ("GRAM", "STARS"):
+        raise HTTPException(status_code=400, detail="Неверная валюта вывода")
+
+    try:
+        amount = round(float(data.get("amount", 0)), 2)
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=400, detail="Некорректная сумма")
+
+    tx_details = str(data.get("tx_details", "")).strip()[:120]
+    if not tx_details:
+        raise HTTPException(status_code=400, detail="Укажи номер транзакции / реквизиты")
+
+    if not math.isfinite(amount) or amount <= 0:
+        raise HTTPException(status_code=400, detail="Укажи корректную сумму")
+
+    # Переводим сумму вывода в GRAM для списания (100 Stars = 1 GRAM)
+    gram_cost = amount if currency == "GRAM" else round(amount / STARS_PER_GRAM, 2)
+    if gram_cost < 0.1:
+        raise HTTPException(status_code=400, detail="Минимальный вывод: 0.1 GRAM или 10 Stars")
 
     async with user_locks[user_id]:
-        nfts = await get_nft_list()
-        target = next((n for n in nfts if n["id"] == nft_id), None)
-        if not target:
-            raise HTTPException(status_code=404, detail="Позиция не найдена")
-        if not target["in_stock"]:
-            raise HTTPException(status_code=400, detail="Нет в наличии")
+        current_bal, _, _ = await get_user_data(user_id)
+        if current_bal < gram_cost:
+            raise HTTPException(status_code=400, detail="Недостаточно GRAM на балансе")
 
-        if inv_id is not None:
-            async with aiosqlite.connect("oceangram_rubup.db") as db:
-                cursor = await db.execute("DELETE FROM inventory WHERE id = ? AND user_id = ?", (int(inv_id), user_id))
-                if cursor.rowcount == 0:
-                    raise HTTPException(status_code=400, detail="Предмет не найден в инвентаре")
-                await db.commit()
-            new_bal, _, _ = await get_user_data(user_id)
-        else:
-            current_bal, _, _ = await get_user_data(user_id)
-            if current_bal < target["price"]:
-                raise HTTPException(status_code=400, detail="Недостаточно GRAM")
-            new_bal, _ = await update_balance(user_id, -target["price"])
+        new_bal, _ = await update_balance(user_id, -gram_cost)
+
+        async with aiosqlite.connect("oceangram_rubup.db") as db:
+            cursor = await db.execute(
+                "INSERT INTO withdrawals (user_id, username, currency, amount, tx_details, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+                (user_id, username, currency, amount, tx_details, int(time.time()))
+            )
+            wd_id = cursor.lastrowid
+            await db.commit()
 
     async with aiosqlite.connect("oceangram_rubup.db") as db:
         async with db.execute("SELECT val FROM settings WHERE key = 'admin_chat_id'") as cursor:
@@ -649,25 +600,24 @@ async def api_withdraw_nft(request: Request):
                     await bot.send_message(
                         chat_id=int(row[0]),
                         text=(
-                            f"🎁 <b>Новая заявка на вывод!</b>\n\n"
+                            f"💸 <b>Новая заявка на вывод #{wd_id}!</b>\n\n"
                             f"Игрок: @{username} (ID: <code>{user_id}</code>)\n"
-                            f"Подарок: {target['icon']} <b>{target['name']}</b>\n"
-                            f"Ценность: <b>{target['price']} GRAM</b>\n"
-                            f"Баланс игрока: <b>{new_bal} GRAM</b>"
+                            f"Сумма: <b>{amount} {currency}</b> (списано {gram_cost} GRAM)\n"
+                            f"Транзакция / реквизиты: <code>{tx_details}</code>\n"
+                            f"Остаток баланса: <b>{new_bal} GRAM</b>"
                         ),
                         parse_mode="HTML"
                     )
                 except Exception:
                     pass
 
-    inv = await get_user_inventory(user_id)
     return {
         "ok": True,
+        "wd_id": wd_id,
         "balance": new_bal,
-        "inventory": inv,
-        "nft_name": target["name"],
-        "nft_icon": target["icon"],
-        "price": target["price"],
+        "currency": currency,
+        "amount": amount,
+        "tx_details": tx_details,
         "admin_username": ADMIN_USERNAME
     }
 
@@ -714,8 +664,6 @@ async def api_upgrade(request: Request):
     except (ValueError, TypeError):
         raise HTTPException(status_code=400, detail="Некорректные данные")
 
-    target_nft_id = data.get("target_nft_id")
-
     if not math.isfinite(bet) or not math.isfinite(multiplier) or bet < 0.05 or bet > 1000000 or multiplier < 1.1 or multiplier > 20:
         raise HTTPException(status_code=400, detail="Некорректная ставка или множитель")
 
@@ -742,17 +690,9 @@ async def api_upgrade(request: Request):
 
         if win_chance > 0 and roll <= win_chance:
             win_amount = round(bet * multiplier, 2)
-            if target_nft_id:
-                new_bal, new_wag = await update_balance(user_id, -bet, add_wager=bet)
-                async with aiosqlite.connect("oceangram_rubup.db") as db:
-                    await db.execute("INSERT INTO inventory (user_id, nft_id) VALUES (?, ?)", (user_id, str(target_nft_id)))
-                    await db.commit()
-                inv = await get_user_inventory(user_id)
-                return {"win": True, "balance": new_bal, "wagered": new_wag, "win_amount": win_amount, "inventory": inv}
-            else:
-                profit = round(win_amount - bet, 2)
-                new_bal, new_wag = await update_balance(user_id, profit, add_wager=bet)
-                return {"win": True, "balance": new_bal, "wagered": new_wag, "win_amount": win_amount}
+            profit = round(win_amount - bet, 2)
+            new_bal, new_wag = await update_balance(user_id, profit, add_wager=bet)
+            return {"win": True, "balance": new_bal, "wagered": new_wag, "win_amount": win_amount}
         else:
             new_bal, new_wag = await update_balance(user_id, -bet, add_wager=bet)
             return {"win": False, "balance": new_bal, "wagered": new_wag, "win_amount": 0}
