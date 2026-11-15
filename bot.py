@@ -10,7 +10,10 @@ from aiogram import Bot, Dispatcher, F, types
 from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.client.telegram import TelegramAPIServer
 from aiogram.filters import Command, CommandStart
-from aiogram.types import LabeledPrice, MenuButtonWebApp, WebAppInfo
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
+from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, LabeledPrice, MenuButtonWebApp, WebAppInfo
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
@@ -18,7 +21,7 @@ import uvicorn
 
 BOT_TOKEN = "1780246830:TqjCrlBhmwucsYl-bfkJmY5bUr5r52bdOlD"
 OCEANGRAM_API = "https://oceanment.2-26-197-16.sslip.io"
-WEBAPP_URL = "https://твой-домен.koyeb.app"
+WEBAPP_URL = "https://твой-домен.amvera.io"
 ADMIN_USERNAME = "rubupgift"
 STARS_TO_RUB_RATE = 1.5
 
@@ -26,7 +29,7 @@ session = AiohttpSession(
     api=TelegramAPIServer.from_base(OCEANGRAM_API)
 )
 bot = Bot(token=BOT_TOKEN, session=session)
-dp = Dispatcher()
+dp = Dispatcher(storage=MemoryStorage())
 app = FastAPI()
 
 app.add_middleware(
@@ -35,6 +38,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+class AdminStates(StatesGroup):
+    waiting_chance = State()
+    waiting_broadcast = State()
+    waiting_promo_data = State()
+
+def is_admin(user: types.User) -> bool:
+    return (user.username or "").lower() == ADMIN_USERNAME.lower()
 
 async def init_db():
     async with aiosqlite.connect("oceangram_rubup.db") as db:
@@ -48,6 +59,20 @@ async def init_db():
             CREATE TABLE IF NOT EXISTS settings (
                 key TEXT PRIMARY KEY,
                 val TEXT
+            )
+        """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS promos (
+                code TEXT PRIMARY KEY,
+                amount REAL,
+                uses_left INTEGER
+            )
+        """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS promo_uses (
+                user_id INTEGER,
+                code TEXT,
+                PRIMARY KEY (user_id, code)
             )
         """)
         await db.execute("INSERT OR IGNORE INTO settings (key, val) VALUES ('win_chance', 'cycle')")
@@ -101,6 +126,25 @@ def verify_telegram_webapp(init_data: str) -> int:
     user_data = json.loads(parsed["user"])
     return int(user_data["id"])
 
+def admin_main_kb() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🎰 Подкрутка шансов", callback_data="adm_chances")],
+        [InlineKeyboardButton(text="🎁 Создать промокод", callback_data="adm_promo_new")],
+        [InlineKeyboardButton(text="📋 Активные промокоды", callback_data="adm_promo_list")],
+        [InlineKeyboardButton(text="📢 Рассылка", callback_data="adm_broadcast")],
+        [InlineKeyboardButton(text="📊 Статистика", callback_data="adm_stats")]
+    ])
+
+def admin_chances_kb() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🔄 Цикл (2 слив 5% / 3 норм)", callback_data="set_ch_cycle")],
+        [InlineKeyboardButton(text="💀 Полный слив (0%)", callback_data="set_ch_0")],
+        [InlineKeyboardButton(text="🔥 Подкрутка (85%)", callback_data="set_ch_85")],
+        [InlineKeyboardButton(text="⚖️ Честный шанс (Auto)", callback_data="set_ch_auto")],
+        [InlineKeyboardButton(text="✏️ Ввести свой %", callback_data="set_ch_custom")],
+        [InlineKeyboardButton(text="🔙 Назад", callback_data="adm_back")]
+    ])
+
 @dp.message(CommandStart())
 async def cmd_start(message: types.Message):
     await get_balance(message.from_user.id)
@@ -111,44 +155,234 @@ async def cmd_start(message: types.Message):
         )
     except Exception:
         pass
-    kb = types.InlineKeyboardMarkup(inline_keyboard=[
-        [types.InlineKeyboardButton(text="🚀 Открыть Руб Ап", web_app=WebAppInfo(url=WEBAPP_URL))]
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🚀 Открыть Руб Ап", web_app=WebAppInfo(url=WEBAPP_URL))]
     ])
-    await message.answer("Жми кнопку ниже, чтобы открыть апгрейды:", reply_markup=kb)
+    await message.answer(
+        "Жми кнопку ниже, чтобы открыть апгрейды:\n\n"
+        "💡 Активировать промокод: <code>/promo КОД</code>",
+        reply_markup=kb,
+        parse_mode="HTML"
+    )
 
-@dp.message(Command("chance"))
-async def cmd_chance(message: types.Message):
-    username = (message.from_user.username or "").lower()
-    if username != ADMIN_USERNAME.lower():
-        return
+@dp.message(Command("promo"))
+async def cmd_promo(message: types.Message):
     parts = message.text.split()
     if len(parts) < 2:
-        cur = await get_custom_chance()
-        await message.answer(
-            f"Текущий режим: <b>{cur}</b>\n\n"
-            f"<code>/chance cycle</code> — первые 2 слив (5%), 3-й норм\n"
-            f"<code>/chance 0</code> — полный слив (0%)\n"
-            f"<code>/chance 85</code> — подкрутка 85%\n"
-            f"<code>/chance auto</code> — честный шанс по множителю",
+        await message.answer("Введи промокод так: <code>/promo КОД</code>", parse_mode="HTML")
+        return
+
+    code = parts[1].strip().upper()
+    user_id = message.from_user.id
+
+    async with aiosqlite.connect("oceangram_rubup.db") as db:
+        async with db.execute("SELECT amount, uses_left FROM promos WHERE code = ?", (code,)) as cursor:
+            promo = await cursor.fetchone()
+
+        if not promo or promo[1] <= 0:
+            await message.answer("❌ Промокод не найден или активации закончились.")
+            return
+
+        async with db.execute("SELECT 1 FROM promo_uses WHERE user_id = ? AND code = ?", (user_id, code)) as cursor:
+            already_used = await cursor.fetchone()
+
+        if already_used:
+            await message.answer("⚠️ Ты уже активировал этот промокод.")
+            return
+
+        amount, uses_left = promo
+        await db.execute("INSERT INTO promo_uses (user_id, code) VALUES (?, ?)", (user_id, code))
+        await db.execute("UPDATE promos SET uses_left = uses_left - 1 WHERE code = ?", (code,))
+        await db.commit()
+
+    new_bal = await update_balance(user_id, amount)
+    await message.answer(f"✅ Промокод <b>{code}</b> активирован!\nНачислено: <b>{amount} ₽</b>\nБаланс: <b>{new_bal} ₽</b>", parse_mode="HTML")
+
+@dp.message(Command("admin"))
+async def cmd_admin(message: types.Message, state: FSMContext):
+    if not is_admin(message.from_user):
+        return
+    await state.clear()
+    cur = await get_custom_chance()
+    await message.answer(
+        f"👑 <b>Админ-панель Руб Ап</b>\n\nТекущий режим шансов: <b>{cur}</b>",
+        reply_markup=admin_main_kb(),
+        parse_mode="HTML"
+    )
+
+@dp.callback_query(F.data == "adm_back")
+async def cb_adm_back(call: types.CallbackQuery, state: FSMContext):
+    if not is_admin(call.from_user):
+        return
+    await state.clear()
+    cur = await get_custom_chance()
+    await call.message.edit_text(
+        f"👑 <b>Админ-панель Руб Ап</b>\n\nТекущий режим шансов: <b>{cur}</b>",
+        reply_markup=admin_main_kb(),
+        parse_mode="HTML"
+    )
+
+@dp.callback_query(F.data == "adm_chances")
+async def cb_adm_chances(call: types.CallbackQuery):
+    if not is_admin(call.from_user):
+        return
+    cur = await get_custom_chance()
+    await call.message.edit_text(
+        f"🎰 <b>Управление шансами</b>\n\nСейчас стоит: <b>{cur}</b>\nВыбери нужный режим:",
+        reply_markup=admin_chances_kb(),
+        parse_mode="HTML"
+    )
+
+@dp.callback_query(F.data.startswith("set_ch_"))
+async def cb_set_chance(call: types.CallbackQuery, state: FSMContext):
+    if not is_admin(call.from_user):
+        return
+    val = call.data.replace("set_ch_", "")
+    if val == "custom":
+        await state.set_state(AdminStates.waiting_chance)
+        await call.message.edit_text(
+            "✏️ Введи число от <b>0</b> до <b>100</b> (процент шанса на выигрыш для всех ставок):",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🔙 Отмена", callback_data="adm_back")]]),
             parse_mode="HTML"
         )
         return
 
-    arg = parts[1].lower()
-    if arg in ("auto", "cycle"):
-        await set_custom_chance(arg)
-        await message.answer(f"✅ Режим переключен на <b>{arg}</b>.", parse_mode="HTML")
-        return
+    await set_custom_chance(val)
+    await call.answer(f"Установлено: {val}", show_alert=True)
+    await call.message.edit_text(
+        f"🎰 <b>Управление шансами</b>\n\nСейчас стоит: <b>{val}</b>\nВыбери нужный режим:",
+        reply_markup=admin_chances_kb(),
+        parse_mode="HTML"
+    )
 
+@dp.message(AdminStates.waiting_chance)
+async def msg_custom_chance(message: types.Message, state: FSMContext):
+    if not is_admin(message.from_user):
+        return
     try:
-        val = float(arg)
+        val = float(message.text.replace(",", "."))
         if 0 <= val <= 100:
             await set_custom_chance(str(val))
-            await message.answer(f"✅ Шанс на залет для всех ставок установлен на <b>{val}%</b>.", parse_mode="HTML")
+            await state.clear()
+            await message.answer(
+                f"✅ Шанс на залет установлен на <b>{val}%</b>.",
+                reply_markup=admin_main_kb(),
+                parse_mode="HTML"
+            )
         else:
-            await message.answer("Укажи число от 0 до 100.")
+            await message.answer("Введи число от 0 до 100:")
     except ValueError:
-        await message.answer("Пример: /chance cycle, /chance 5 или /chance auto")
+        await message.answer("Неверный формат. Введи просто число, например 15:")
+
+@dp.callback_query(F.data == "adm_promo_new")
+async def cb_promo_new(call: types.CallbackQuery, state: FSMContext):
+    if not is_admin(call.from_user):
+        return
+    await state.set_state(AdminStates.waiting_promo_data)
+    await call.message.edit_text(
+        "🎁 <b>Создание промокода</b>\n\nОтправь данные через пробел в формате:\n<code>КОД СУММА КОЛ_ВО_АКТИВАЦИЙ</code>\n\nПример:\n<code>START100 100 50</code>",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🔙 Отмена", callback_data="adm_back")]]),
+        parse_mode="HTML"
+    )
+
+@dp.message(AdminStates.waiting_promo_data)
+async def msg_promo_data(message: types.Message, state: FSMContext):
+    if not is_admin(message.from_user):
+        return
+    parts = message.text.split()
+    if len(parts) != 3:
+        await message.answer("❌ Неверный формат. Напиши так: <code>START100 100 50</code>", parse_mode="HTML")
+        return
+    try:
+        code = parts[0].upper()
+        amount = float(parts[1].replace(",", "."))
+        uses = int(parts[2])
+        if amount <= 0 or uses <= 0:
+            raise ValueError
+        async with aiosqlite.connect("oceangram_rubup.db") as db:
+            await db.execute("INSERT OR REPLACE INTO promos (code, amount, uses_left) VALUES (?, ?, ?)", (code, amount, uses))
+            await db.commit()
+        await state.clear()
+        await message.answer(
+            f"✅ Промокод <b>{code}</b> создан!\nСумма: <b>{amount} ₽</b>\nАктиваций: <b>{uses}</b>",
+            reply_markup=admin_main_kb(),
+            parse_mode="HTML"
+        )
+    except ValueError:
+        await message.answer("❌ Сумма и количество активаций должны быть числами больше 0.")
+
+@dp.callback_query(F.data == "adm_promo_list")
+async def cb_promo_list(call: types.CallbackQuery):
+    if not is_admin(call.from_user):
+        return
+    async with aiosqlite.connect("oceangram_rubup.db") as db:
+        async with db.execute("SELECT code, amount, uses_left FROM promos WHERE uses_left > 0") as cursor:
+            rows = await cursor.fetchall()
+
+    if not rows:
+        text = "📋 Активных промокодов пока нет."
+    else:
+        lines = [f"• <code>{r[0]}</code> — <b>{r[1]} ₽</b> (осталось: {r[2]})" for r in rows]
+        text = "📋 <b>Активные промокоды:</b>\n\n" + "\n".join(lines)
+
+    await call.message.edit_text(
+        text,
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🔙 Назад", callback_data="adm_back")]]),
+        parse_mode="HTML"
+    )
+
+@dp.callback_query(F.data == "adm_broadcast")
+async def cb_broadcast(call: types.CallbackQuery, state: FSMContext):
+    if not is_admin(call.from_user):
+        return
+    await state.set_state(AdminStates.waiting_broadcast)
+    await call.message.edit_text(
+        "📢 <b>Рассылка</b>\n\nОтправь сообщение (текст, картинку или пост), которое нужно разослать всем пользователям бота:",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🔙 Отмена", callback_data="adm_back")]]),
+        parse_mode="HTML"
+    )
+
+@dp.message(AdminStates.waiting_broadcast)
+async def msg_broadcast(message: types.Message, state: FSMContext):
+    if not is_admin(message.from_user):
+        return
+    await state.clear()
+    async with aiosqlite.connect("oceangram_rubup.db") as db:
+        async with db.execute("SELECT user_id FROM users") as cursor:
+            users = await cursor.fetchall()
+
+    sent = 0
+    failed = 0
+    status_msg = await message.answer(f"⏳ Начинаю рассылку на {len(users)} чел...")
+
+    for (uid,) in users:
+        try:
+            await message.copy_to(chat_id=uid)
+            sent += 1
+            await asyncio.sleep(0.05)
+        except Exception:
+            failed += 1
+
+    await status_msg.edit_text(
+        f"✅ <b>Рассылка завершена!</b>\n\nДоставлено: <b>{sent}</b>\nОшибок/блокировок: <b>{failed}</b>",
+        reply_markup=admin_main_kb(),
+        parse_mode="HTML"
+    )
+
+@dp.callback_query(F.data == "adm_stats")
+async def cb_stats(call: types.CallbackQuery):
+    if not is_admin(call.from_user):
+        return
+    async with aiosqlite.connect("oceangram_rubup.db") as db:
+        async with db.execute("SELECT COUNT(*), COALESCE(SUM(balance), 0) FROM users") as cursor:
+            total_users, total_bal = await cursor.fetchone()
+    await call.message.edit_text(
+        f"📊 <b>Статистика проекта</b>\n\n"
+        f"Всего игроков: <b>{total_users}</b>\n"
+        f"Общий баланс игроков: <b>{round(total_bal, 2)} ₽</b>",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🔙 Назад", callback_data="adm_back")]]),
+        parse_mode="HTML"
+    )
 
 @dp.pre_checkout_query()
 async def pre_checkout_handler(query: types.PreCheckoutQuery):
@@ -242,4 +476,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-
