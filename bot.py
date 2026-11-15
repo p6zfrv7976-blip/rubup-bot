@@ -28,13 +28,9 @@ OCEANGRAM_API = "https://oceanment.2-26-197-16.sslip.io"
 WEBAPP_URL = "https://rubup-borohezh.mia0.amvera.tech"
 OWNER_USERNAME = "rubupgift"
 STARS_PER_GRAM = 100.0
+OCEANGRAM_CLAIM_REWARD = 5.0
 
-# === OCEANGRAM CHECK ===
-OCEANGRAM_CLAIM_REWARD = 5.0  # сколько GRAM давать за подтверждённый юзернейм
-
-session = AiohttpSession(
-    api=TelegramAPIServer.from_base(OCEANGRAM_API)
-)
+session = AiohttpSession(api=TelegramAPIServer.from_base(OCEANGRAM_API))
 bot = Bot(token=BOT_TOKEN, session=session)
 dp = Dispatcher(storage=MemoryStorage())
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
@@ -65,7 +61,7 @@ class AdminStates(StatesGroup):
     waiting_promo_data = State()
     waiting_balance_edit = State()
     waiting_new_admin = State()
-    waiting_oceangram_username = State()  # === OCEANGRAM CHECK ===
+    waiting_oceangram_username = State()
 
 def is_owner(user: types.User) -> bool:
     return bool(user and user.username and user.username.lower() == OWNER_USERNAME.lower())
@@ -179,8 +175,6 @@ async def init_db():
                 PRIMARY KEY (user_id, code)
             )
         """)
-
-        # === OCEANGRAM CHECK ===
         await db.execute("""
             CREATE TABLE IF NOT EXISTS oceangram_claims (
                 user_id INTEGER PRIMARY KEY,
@@ -191,7 +185,6 @@ async def init_db():
                 claimed_at INTEGER
             )
         """)
-
         await db.execute("INSERT OR IGNORE INTO settings (key, val) VALUES ('win_chance', 'mode_1')")
         await db.execute("INSERT OR IGNORE INTO settings (key, val) VALUES ('spin_count', '0')")
         await db.commit()
@@ -280,12 +273,7 @@ async def update_balance(user_id: int, delta: float, add_wager: float = 0.0) -> 
     u = await ensure_user(user_id)
     return u["balance"], u["wagered"]
 
-# === OCEANGRAM CHECK ===
 async def oceangram_user_exists(username: str) -> tuple[bool, str, int]:
-    """
-    Проверяет наличие юзернейма в OceanGram через bot.get_chat.
-    Возвращает (exists, clean_username, ocean_user_id).
-    """
     clean = (username or "").strip().lstrip("@")
     if not clean or not clean.replace("_", "").isalnum():
         return False, clean, 0
@@ -316,7 +304,6 @@ async def get_oceangram_claim(user_id: int) -> dict | None:
     }
 
 async def claim_oceangram_username(user_id: int, raw_username: str) -> tuple[bool, str, dict | None]:
-    """Проверяет юзернейм в OceanGram и выдаёт граммы один раз."""
     existing = await get_oceangram_claim(user_id)
     if existing:
         return False, f"Ты уже подтвердил юзернейм @{existing['oceangram_username']}", existing
@@ -325,7 +312,6 @@ async def claim_oceangram_username(user_id: int, raw_username: str) -> tuple[boo
     if not exists:
         return False, f"Юзернейм @{clean} не найден в OceanGram", None
 
-    # защита: один OG-аккаунт = один клейм
     async with aiosqlite.connect("oceangram_rubup.db") as db:
         async with db.execute(
             "SELECT user_id FROM oceangram_claims WHERE LOWER(oceangram_username) = LOWER(?)",
@@ -340,6 +326,16 @@ async def claim_oceangram_username(user_id: int, raw_username: str) -> tuple[boo
                 (user_id, "", clean, og_uid, OCEANGRAM_CLAIM_REWARD, int(time.time()))
             )
             await db.commit()
+
+            # merge: переносим баланс с виртуального og-ключа на реальный user_id
+            if og_uid and og_uid != user_id:
+                async with db.execute("SELECT balance FROM users_gram WHERE user_id = ?", (og_uid,)) as cur:
+                    r = await cur.fetchone()
+                if r and (r[0] or 0) > 0:
+                    await db.execute("UPDATE users_gram SET balance = round(balance + ?, 2) WHERE user_id = ?", (r[0], user_id))
+                    await db.execute("UPDATE users_gram SET balance = 0 WHERE user_id = ?", (og_uid,))
+                    await db.commit()
+
             new_bal, _ = await update_balance(user_id, OCEANGRAM_CLAIM_REWARD)
             await record_game_event(user_id, "Бонус OceanGram", 0.0, 0.0, OCEANGRAM_CLAIM_REWARD)
 
@@ -427,7 +423,6 @@ async def cmd_start(message: types.Message):
 
 @dp.callback_query(F.data == "og_claim")
 async def cb_og_claim(call: types.CallbackQuery, state: FSMContext):
-    # === OCEANGRAM CHECK ===
     existing = await get_oceangram_claim(call.from_user.id)
     if existing:
         await call.answer(f"Уже подтверждён: @{existing['oceangram_username']}", show_alert=True)
@@ -440,7 +435,6 @@ async def cb_og_claim(call: types.CallbackQuery, state: FSMContext):
 
 @dp.message(AdminStates.waiting_oceangram_username)
 async def msg_og_claim(message: types.Message, state: FSMContext):
-    # === OCEANGRAM CHECK ===
     raw = (message.text or "").strip()
     if not raw:
         await message.answer("❌ Отправь юзернейм.")
@@ -647,7 +641,12 @@ async def cb_adm_bal_edit(call: types.CallbackQuery, state: FSMContext):
         return
     await state.set_state(AdminStates.waiting_balance_edit)
     await call.message.edit_text(
-        "💰 <b>Выдача / списание GRAM</b>\n\nВведи ID игрока (или @username) и сумму через пробел:\n<code>123456789 50</code> (выдать)\n<code>123456789 -20</code> (списать)",
+        "💰 <b>Выдача / списание GRAM</b>\n\n"
+        "Введи ID, @Telegram-ник или @OceanGram-ник и сумму через пробел:\n"
+        "<code>123456789 50</code> — по ID\n"
+        "<code>@tguser 50</code> — по Telegram-нику\n"
+        "<code>@oguser 50</code> — по OceanGram-нику\n"
+        "<code>123456789 -20</code> — списать",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🔙 Отмена", callback_data="adm_back")]]),
         parse_mode="HTML"
     )
@@ -658,7 +657,7 @@ async def msg_bal_edit(message: types.Message, state: FSMContext):
         return
     parts = (message.text or "").split()
     if len(parts) != 2:
-        await message.answer("❌ Формат: <code>ID СУММА</code>", parse_mode="HTML")
+        await message.answer("❌ Формат: <code>ID_ИЛИ_@USER СУММА</code>", parse_mode="HTML")
         return
     target_raw = parts[0].lstrip("@")
     try:
@@ -669,25 +668,77 @@ async def msg_bal_edit(message: types.Message, state: FSMContext):
         await message.answer("❌ Неверная сумма.")
         return
 
+    uid = 0
+    og_label = ""
+    found_via = ""
+
     async with aiosqlite.connect("oceangram_rubup.db") as db:
         if target_raw.isdigit():
             uid = int(target_raw)
+            found_via = "ID"
         else:
-            async with db.execute("SELECT user_id FROM users_gram WHERE LOWER(username) = LOWER(?)", (target_raw,)) as cur:
+            async with db.execute(
+                "SELECT user_id FROM users_gram WHERE LOWER(username) = LOWER(?)",
+                (target_raw,)
+            ) as cur:
                 r = await cur.fetchone()
-                if not r:
-                    await message.answer("❌ Игрок с таким @username не найден в базе.")
-                    return
+            if r:
                 uid = r[0]
-        await db.execute("INSERT OR IGNORE INTO users_gram (user_id, balance, wagered) VALUES (?, 0.0, 0.0)", (uid,))
-        await db.execute("UPDATE users_gram SET balance = MAX(0, round(balance + ?, 2)) WHERE user_id = ?", (delta, uid))
+                found_via = "RubUP (TG @)"
+            else:
+                async with db.execute(
+                    "SELECT user_id FROM oceangram_claims WHERE LOWER(oceangram_username) = LOWER(?)",
+                    (target_raw,)
+                ) as cur:
+                    r = await cur.fetchone()
+                if r:
+                    uid = r[0]
+                    found_via = "RubUP (OG claim)"
+
+        if not uid:
+            exists, clean, og_uid = await oceangram_user_exists(target_raw)
+            if not exists:
+                await message.answer(
+                    f"❌ Юзернейм @{target_raw} не найден ни в базе RubUP, ни в OceanGram.",
+                    parse_mode="HTML"
+                )
+                return
+            og_label = clean
+            uid = int(og_uid) if og_uid and og_uid > 0 else 0
+            if not uid:
+                await message.answer(
+                    f"⚠️ @{clean} найден в OceanGram, но API не вернул его ID — начислить нельзя.",
+                    parse_mode="HTML"
+                )
+                return
+            found_via = f"OceanGram (@{clean})"
+            await db.execute(
+                "INSERT OR IGNORE INTO users_gram (user_id, username, first_name, balance, wagered) VALUES (?, ?, ?, 0.0, 0.0)",
+                (uid, f"og:{clean}", f"OceanGram @{clean}")
+            )
+            await db.execute(
+                "UPDATE users_gram SET username = COALESCE(NULLIF(username, ''), ?) WHERE user_id = ?",
+                (f"og:{clean}", uid)
+            )
+
+        await db.execute(
+            "INSERT OR IGNORE INTO users_gram (user_id, balance, wagered) VALUES (?, 0.0, 0.0)",
+            (uid,)
+        )
+        await db.execute(
+            "UPDATE users_gram SET balance = MAX(0, round(balance + ?, 2)) WHERE user_id = ?",
+            (delta, uid)
+        )
         await db.commit()
         async with db.execute("SELECT balance FROM users_gram WHERE user_id = ?", (uid,)) as cur:
             new_b = (await cur.fetchone())[0]
 
     await state.clear()
     await message.answer(
-        f"✅ Баланс игрока <code>{uid}</code> обновлён!\nНовый баланс: <b>{new_b} GRAM</b>",
+        f"✅ Начислено <b>{delta:+} GRAM</b>\n"
+        f"Получатель: <code>{uid}</code>{' (@' + og_label + ')' if og_label else ''}\n"
+        f"Источник: {found_via}\n"
+        f"Новый баланс: <b>{new_b} GRAM</b>",
         reply_markup=admin_main_kb(owner=is_owner(message.from_user)),
         parse_mode="HTML"
     )
@@ -867,7 +918,6 @@ async def api_user(request: Request):
         async with db.execute("SELECT game, bet, mult, win FROM game_history WHERE user_id = ? ORDER BY id DESC LIMIT 15", (uid,)) as cur:
             my_games = [{"game": r[0], "bet": r[1], "mult": r[2], "win": r[3]} for r in await cur.fetchall()]
 
-    # === OCEANGRAM CHECK ===
     og_claim = await get_oceangram_claim(uid)
 
     return {
@@ -880,7 +930,6 @@ async def api_user(request: Request):
         "oceangram_claim": og_claim
     }
 
-# === OCEANGRAM CHECK ===
 @app.post("/api/oceangram/claim")
 async def api_oceangram_claim(request: Request):
     data = await request.json()
