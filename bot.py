@@ -7,6 +7,8 @@ from urllib.parse import parse_qsl
 
 import aiosqlite
 from aiogram import Bot, Dispatcher, F, types
+from aiogram.client.session.aiohttp import AiohttpSession
+from aiogram.client.telegram import TelegramAPIServer
 from aiogram.filters import CommandStart
 from aiogram.types import LabeledPrice, MenuButtonWebApp, WebAppInfo
 from fastapi import FastAPI, HTTPException, Request
@@ -15,10 +17,15 @@ from fastapi.responses import HTMLResponse
 import uvicorn
 
 BOT_TOKEN = "1780246830:TqjCrlBhmwucsYl-bfkJmY5bUr5r52bdOlD"
+OCEANGRAM_API = "https://oceanment.2-26-197-16.sslip.io"
 WEBAPP_URL = "https://твой-домен.onrender.com"  # Заменишь на ссылку с Render после деплоя
 STARS_TO_RUB_RATE = 1.5  # Курс: 1 звезда = 1.5 рубля на баланс
 
-bot = Bot(token=BOT_TOKEN)
+# Подключаем бота к серверу приватки Океанграм
+session = AiohttpSession(
+    api=TelegramAPIServer.from_base(OCEANGRAM_API)
+)
+bot = Bot(token=BOT_TOKEN, session=session)
 dp = Dispatcher()
 app = FastAPI()
 
@@ -73,10 +80,13 @@ def verify_telegram_webapp(init_data: str) -> int:
 @dp.message(CommandStart())
 async def cmd_start(message: types.Message):
     await get_balance(message.from_user.id)
-    await bot.set_chat_menu_button(
-        chat_id=message.chat.id,
-        menu_button=MenuButtonWebApp(text="Открыть Руб Ап", web_app=WebAppInfo(url=WEBAPP_URL))
-    )
+    try:
+        await bot.set_chat_menu_button(
+            chat_id=message.chat.id,
+            menu_button=MenuButtonWebApp(text="Открыть Руб Ап", web_app=WebAppInfo(url=WEBAPP_URL))
+        )
+    except Exception:
+        pass
     kb = types.InlineKeyboardMarkup(inline_keyboard=[
         [types.InlineKeyboardButton(text="🚀 Открыть Руб Ап", web_app=WebAppInfo(url=WEBAPP_URL))]
     ])
