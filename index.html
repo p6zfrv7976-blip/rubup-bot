@@ -115,7 +115,7 @@
   .hist-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.07); font-size: 12px; }
   .hist-row:last-child { border-bottom: none; }
 
-  /* Bottom Nav (2 clean tabs) */
+  /* Bottom Nav (2 tabs) */
   .bottom-nav { position: fixed; bottom: 12px; left: 16px; right: 16px; max-width: 428px; margin: 0 auto; background: rgba(22, 20, 40, 0.92); backdrop-filter: blur(18px); border: 1px solid rgba(255,255,255,0.1); border-radius: 24px; padding: 6px; display: grid; grid-template-columns: 1fr 1fr; z-index: 40; box-shadow: 0 10px 30px rgba(0,0,0,0.45); }
   .nav-item { text-align: center; padding: 11px 4px; border-radius: 18px; font-size: 13px; font-weight: 700; color: #94a3b8; cursor: pointer; }
   .nav-item.active { background: rgba(255,255,255,0.1); color: #fff; }
@@ -366,13 +366,13 @@
   </div>
 </div>
 
-<!-- Bottom Navigation (2 tabs) -->
+<!-- Bottom Navigation -->
 <div class="bottom-nav">
   <div class="nav-item active" id="nav-games" onclick="switchTab('games')">Игры</div>
   <div class="nav-item" id="nav-profile" onclick="switchTab('profile')">Профиль</div>
 </div>
 
-<!-- Modal: Topup (Transfer to @rubupgift) -->
+<!-- Modal: Topup -->
 <div class="modal" id="topupModal">
   <div class="modal-sheet">
     <div class="m-title">Пополнение баланса</div>
@@ -426,14 +426,24 @@
   const tg = window.Telegram.WebApp;
   tg.expand();
 
+  const urlParams = new URLSearchParams(window.location.search);
+  const queryUid = urlParams.get('uid');
+  if (queryUid) localStorage.setItem('rubup_uid', queryUid);
+  const savedUid = localStorage.getItem('rubup_uid') || "";
+
   function notifyUser(msg) {
     try { tg.showAlert(msg); } catch (e) { alert(msg); }
   }
 
   function getAuthPayload(extra = {}) {
+    const unsafeUser = (tg.initDataUnsafe && tg.initDataUnsafe.user) ? tg.initDataUnsafe.user : null;
+    if (unsafeUser && unsafeUser.id) {
+      localStorage.setItem('rubup_uid', String(unsafeUser.id));
+    }
     return Object.assign({
       initData: tg.initData || "",
-      user: (tg.initDataUnsafe && tg.initDataUnsafe.user) ? tg.initDataUnsafe.user : null
+      user: unsafeUser,
+      uid: (unsafeUser && unsafeUser.id) ? unsafeUser.id : (localStorage.getItem('rubup_uid') || savedUid)
     }, extra);
   }
 
@@ -463,7 +473,7 @@
     const navEl = document.getElementById('nav-' + tab);
     if (navEl) navEl.classList.add('active');
     if (tab === 'crash') drawCrashScene(1.0, false);
-    if (tab === 'profile') loadUser();
+    loadUser();
   }
 
   function formatNum(n) {
@@ -522,7 +532,9 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(getAuthPayload())
       });
+      if (!res.ok) return;
       const data = await res.json();
+      if (data.user_id) localStorage.setItem('rubup_uid', String(data.user_id));
       if (data.balance !== undefined) setBalanceUI(data.balance, data.wagered);
       if (data.admin_username) adminUsername = data.admin_username;
 
@@ -545,6 +557,11 @@
       }
     } catch (e) {}
   }
+
+  // Авто-обновление баланса каждые 3 секунды (если админ выдал или списал GRAM)
+  setInterval(() => {
+    if (!isSpinning && !crashRunning) loadUser();
+  }, 3000);
 
   // --- UPGRADE LOGIC ---
   function setMult(mult, btn) {
