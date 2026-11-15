@@ -9,7 +9,6 @@
   * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
   body { background: #131221; color: #fff; min-height: 100vh; padding-bottom: 92px; overflow-x: hidden; }
   
-  /* Top Header */
   .topbar { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; position: sticky; top: 0; background: rgba(19, 18, 33, 0.92); backdrop-filter: blur(12px); z-index: 30; }
   .brand { font-size: 22px; font-weight: 900; letter-spacing: -0.5px; display: flex; align-items: center; cursor: pointer; }
   .brand span { color: #f6c945; font-style: italic; margin-left: 1px; }
@@ -17,14 +16,13 @@
   .bal-pill { background: #1e1d32; border: 1px solid #2c2a48; padding: 6px 12px; border-radius: 20px; display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 14px; cursor: pointer; }
   .gram-badge { width: 20px; height: 20px; border-radius: 50%; background: linear-gradient(135deg, #3b82f6, #06b6d4); display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 900; color: #fff; }
   .btn-dep-top { background: linear-gradient(135deg, #7c69ef, #624de3); border: none; color: #fff; font-weight: 700; font-size: 14px; padding: 8px 16px; border-radius: 20px; cursor: pointer; box-shadow: 0 4px 14px rgba(124, 105, 239, 0.35); }
-  .avatar-btn { width: 34px; height: 34px; border-radius: 50%; background: #26243d; border: 1.5px solid #3a375c; display: flex; align-items: center; justify-content: center; font-size: 16px; cursor: pointer; position: relative; }
+  .avatar-btn { width: 34px; height: 34px; border-radius: 50%; background: #26243d; border: 1.5px solid #3a375c; display: flex; align-items: center; justify-content: center; cursor: pointer; position: relative; color: #cbd5e1; }
   .avatar-dot { width: 8px; height: 8px; background: #22c55e; border-radius: 50%; position: absolute; bottom: 0; right: 0; border: 1.5px solid #131221; }
 
   .container { padding: 0 16px; max-width: 460px; margin: 0 auto; }
   .screen { display: none; }
   .screen.active { display: block; }
 
-  /* Screen 1: Games Grid */
   .sec-title { font-size: 24px; font-weight: 800; margin: 6px 0 14px; }
   .games-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
   .game-card { border-radius: 20px; padding: 14px; height: 185px; position: relative; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; cursor: pointer; border: 1px solid rgba(255,255,255,0.08); transition: transform 0.15s; }
@@ -35,17 +33,19 @@
   .gc-cases { background: radial-gradient(circle at 50% 45%, #1d4ed8, #172554 85%); }
   .online-pill { background: rgba(15, 14, 28, 0.65); backdrop-filter: blur(6px); padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; gap: 5px; width: fit-content; z-index: 2; }
   .online-dot { width: 6px; height: 6px; background: #22c55e; border-radius: 50%; }
-  .gc-art { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 74px; pointer-events: none; filter: drop-shadow(0 8px 18px rgba(0,0,0,0.45)); }
+  .gc-art { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; filter: drop-shadow(0 10px 18px rgba(0,0,0,0.55)); }
+  .gc-art svg { width: 92px; height: 92px; }
   .gc-name { font-size: 19px; font-weight: 800; z-index: 2; text-shadow: 0 2px 8px rgba(0,0,0,0.6); }
 
-  /* Screen 2: Upgrade */
   .live-strip { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 10px; margin-bottom: 6px; scrollbar-width: none; }
   .live-strip::-webkit-scrollbar { display: none; }
   .live-badge { background: #1e1d32; border-radius: 14px; padding: 6px 10px; display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; white-space: nowrap; border: 1px solid #2a2845; }
+  .live-badge svg { width: 18px; height: 18px; flex-shrink: 0; }
   .wheel-wrap { position: relative; width: 246px; height: 246px; margin: 4px auto 12px; display: flex; align-items: center; justify-content: center; }
   .wheel-outer { width: 100%; height: 100%; border-radius: 50%; background: conic-gradient(#7c69ef 0% 47.5%, #222138 47.5% 100%); padding: 14px; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 0 20px rgba(0,0,0,0.6); }
   .wheel-core { width: 100%; height: 100%; border-radius: 50%; background: #19182b; border: 2px solid #2b2946; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; cursor: pointer; padding: 12px; }
-  .wheel-target-icon { font-size: 42px; margin-bottom: 4px; }
+  .wheel-target-icon { width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; margin-bottom: 4px; font-size: 32px; font-weight: 700; color: #7c69ef; }
+  .wheel-target-icon svg { width: 62px; height: 62px; filter: drop-shadow(0 6px 12px rgba(0,0,0,0.5)); }
   .wheel-target-text { font-size: 14px; font-weight: 700; color: #e2e8f0; }
   .spinner-track { position: absolute; inset: 0; border-radius: 50%; transition: transform 3.2s cubic-bezier(0.15, 0.85, 0.25, 1); pointer-events: none; }
   .pointer-arrow { position: absolute; bottom: -6px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 11px solid transparent; border-right: 11px solid transparent; border-bottom: 22px solid #f6c945; filter: drop-shadow(0 0 8px rgba(246, 201, 69, 0.6)); }
@@ -56,8 +56,9 @@
   .slot-card { background: #1e1d32; border: 1px solid #2b2946; border-radius: 16px; padding: 12px; cursor: pointer; }
   .slot-lbl { font-size: 11px; color: #8b89a6; margin-bottom: 6px; }
   .slot-main { display: flex; align-items: center; gap: 8px; }
-  .slot-plus { width: 32px; height: 32px; border-radius: 50%; background: #292742; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; color: #94a3b8; }
-  .slot-title { font-size: 14px; font-weight: 700; }
+  .slot-plus { width: 34px; height: 34px; border-radius: 12px; background: #292742; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; color: #94a3b8; flex-shrink: 0; }
+  .slot-plus svg { width: 26px; height: 26px; }
+  .slot-title { font-size: 13px; font-weight: 700; line-height: 1.2; }
   .slot-sub { font-size: 11px; color: #7c7a99; }
   .arrow-mid { width: 26px; height: 26px; border-radius: 50%; background: #26243d; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #94a3b8; }
 
@@ -71,7 +72,6 @@
   .btn-up-t1 { font-size: 16px; font-weight: 800; display: block; }
   .btn-up-t2 { font-size: 11px; color: rgba(255,255,255,0.75); }
 
-  /* Screen 3: Profile */
   .prof-card { background: #1e1d32; border: 1px solid #2b2946; border-radius: 22px; padding: 18px; margin-bottom: 12px; }
   .prof-bal-lbl { text-align: center; font-size: 13px; color: #8b89a6; }
   .prof-bal-val { text-align: center; font-size: 34px; font-weight: 900; margin: 4px 0 16px; display: flex; align-items: center; justify-content: center; gap: 8px; }
@@ -106,13 +106,11 @@
   .inv-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
   .inv-item { background: #151424; border: 1px solid #2b2946; border-radius: 14px; padding: 10px; display: flex; flex-direction: column; justify-content: space-between; }
 
-  /* Bottom Navigation */
   .bottom-nav { position: fixed; bottom: 12px; left: 14px; right: 14px; max-width: 432px; margin: 0 auto; background: rgba(30, 29, 50, 0.92); backdrop-filter: blur(14px); border: 1px solid #2f2d4d; border-radius: 24px; padding: 6px; display: grid; grid-template-columns: repeat(4, 1fr); z-index: 40; }
   .nav-item { text-align: center; padding: 10px 4px; border-radius: 18px; font-size: 12px; font-weight: 700; color: #8b89a6; cursor: pointer; position: relative; }
   .nav-item.active { background: #2c2a48; color: #fff; }
   .free-badge { position: absolute; top: -7px; left: 50%; transform: translateX(-50%); background: #f6c945; color: #131221; font-size: 9px; font-weight: 900; padding: 1px 6px; border-radius: 8px; }
 
-  /* Modals */
   .modal { display: none; position: fixed; inset: 0; background: rgba(10, 9, 20, 0.85); backdrop-filter: blur(6px); z-index: 50; align-items: flex-end; justify-content: center; }
   .modal-sheet { background: #1e1d32; border-top: 1px solid #323052; border-radius: 24px 24px 0 0; width: 100%; max-width: 460px; padding: 20px; max-height: 82vh; overflow-y: auto; }
   .m-title { font-size: 18px; font-weight: 800; text-align: center; margin-bottom: 4px; }
@@ -121,8 +119,10 @@
   .star-btn { background: #26243d; border: 1px solid #383559; border-radius: 14px; padding: 12px 6px; color: #fff; font-weight: 800; font-size: 14px; cursor: pointer; text-align: center; }
   .star-btn small { display: block; color: #38bdf8; font-size: 11px; margin-top: 2px; }
   .nft-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 14px; }
-  .nft-box { background: #26243d; border: 1px solid #383559; border-radius: 14px; padding: 12px; display: flex; flex-direction: column; justify-content: space-between; }
+  .nft-box { background: #26243d; border: 1px solid #383559; border-radius: 16px; padding: 12px; display: flex; flex-direction: column; justify-content: space-between; align-items: center; text-align: center; }
   .nft-box.out { opacity: 0.45; }
+  .nft-art { width: 58px; height: 58px; margin-bottom: 6px; display: flex; align-items: center; justify-content: center; filter: drop-shadow(0 6px 12px rgba(0,0,0,0.45)); }
+  .nft-art svg { width: 54px; height: 54px; }
   .nft-btn { width: 100%; padding: 8px; border-radius: 10px; border: none; font-weight: 700; font-size: 12px; cursor: pointer; background: #7c69ef; color: #fff; margin-top: 8px; }
   .nft-btn.disabled { background: #19182b; color: #64748b; cursor: not-allowed; }
   .btn-close { width: 100%; background: #292742; border: none; color: #cbd5e1; font-weight: 700; padding: 12px; border-radius: 14px; cursor: pointer; }
@@ -139,47 +139,42 @@
       <span id="topBalance">0.00</span>
     </div>
     <button class="btn-dep-top" onclick="openTopup()">Пополнить</button>
-    <div class="avatar-btn" onclick="switchTab('profile')">👤<div class="avatar-dot"></div></div>
+    <div class="avatar-btn" onclick="switchTab('profile')">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" fill="currentColor"/><path d="M4 20c0-3.8 3.6-6 8-6s8 2.2 8 6" fill="currentColor"/></svg>
+      <div class="avatar-dot"></div>
+    </div>
   </div>
 </div>
 
 <div class="container">
-  <!-- SCREEN 1: GAMES -->
   <div class="screen active" id="scr-games">
     <div class="sec-title">Игры</div>
     <div class="games-grid">
       <div class="game-card gc-upgrade" onclick="switchTab('upgrade')">
         <div class="online-pill"><span class="online-dot"></span> 357 играют</div>
-        <div class="gc-art">🪖</div>
+        <div class="gc-art" id="art-card-upgrade"></div>
         <div class="gc-name">Апгрейд</div>
       </div>
       <div class="game-card gc-storm" onclick="switchTab('upgrade')">
         <div class="online-pill"><span class="online-dot"></span> 18 играют</div>
-        <div class="gc-art">💎</div>
+        <div class="gc-art" id="art-card-storm"></div>
         <div class="gc-name">Шторм</div>
       </div>
       <div class="game-card gc-rocket" onclick="switchTab('upgrade')">
         <div class="online-pill"><span class="online-dot"></span> 151 играет</div>
-        <div class="gc-art">🚀</div>
+        <div class="gc-art" id="art-card-rocket"></div>
         <div class="gc-name">Ракетка</div>
       </div>
       <div class="game-card gc-cases" onclick="openWithdraw()">
         <div class="online-pill"><span class="online-dot"></span> 1 550 играют</div>
-        <div class="gc-art">🎁</div>
+        <div class="gc-art" id="art-card-cases"></div>
         <div class="gc-name">Кейсы</div>
       </div>
     </div>
   </div>
 
-  <!-- SCREEN 2: UPGRADE -->
   <div class="screen" id="scr-upgrade">
-    <div class="live-strip">
-      <div class="live-badge">• LIVE</div>
-      <div class="live-badge">🧸 0.16 G ×1.2</div>
-      <div class="live-badge">💠 6.55 G ×1.2</div>
-      <div class="live-badge">🎂 0.55 G ×1.4</div>
-      <div class="live-badge">🎁 4.45 G ×3.7</div>
-    </div>
+    <div class="live-strip" id="liveStrip"></div>
 
     <div class="wheel-wrap">
       <div class="wheel-outer" id="wheelOuter">
@@ -199,7 +194,7 @@
       <div class="slot-card" onclick="document.getElementById('betInput').focus()">
         <div class="slot-lbl">Ваша ставка</div>
         <div class="slot-main">
-          <div class="slot-plus">G</div>
+          <div class="slot-plus" style="background:linear-gradient(135deg,#3b82f6,#06b6d4);color:#fff;">G</div>
           <div>
             <div class="slot-title" id="betSlotTitle">1.00 GRAM</div>
             <div class="slot-sub">с баланса</div>
@@ -232,13 +227,12 @@
     </div>
 
     <button class="btn-upgrade-main" id="playBtn" onclick="playUpgrade()">
-      <span class="btn-up-t1">⚡ Улучшить</span>
+      <span class="btn-up-t1">Улучшить</span>
       <span class="btn-up-t2" id="winPreviewSub">Выигрыш: 2.00 GRAM</span>
     </button>
     <div id="statusMsg" style="text-align:center; font-weight:800; margin-top:10px; min-height:22px;"></div>
   </div>
 
-  <!-- SCREEN 3: PROFILE -->
   <div class="screen" id="scr-profile">
     <div class="prof-card">
       <div class="prof-bal-lbl">Баланс</div>
@@ -262,7 +256,10 @@
     </div>
 
     <div class="promo-card">
-      <div class="promo-head">🎁 Промокод</div>
+      <div class="promo-head">
+        <span style="width:24px;height:24px;display:inline-flex;" id="promoIconSlot"></span>
+        Промокод
+      </div>
       <div class="promo-form">
         <input type="text" id="promoInp" class="promo-inp" placeholder="Ваш код">
         <button class="promo-btn" onclick="activatePromo()">Активировать</button>
@@ -271,7 +268,9 @@
 
     <div class="ref-card">
       <div class="ref-left">
-        <div style="font-size:28px;">🔗</div>
+        <div style="width:36px;height:36px;border-radius:12px;background:#292742;display:flex;align-items:center;justify-content:center;color:#7c69ef;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+        </div>
         <div>
           <div class="ref-title">Друзья</div>
           <div class="ref-sub"><span id="refCount">0</span> друзей приглашено</div>
@@ -292,7 +291,6 @@
   </div>
 </div>
 
-<!-- Bottom Nav -->
 <div class="bottom-nav">
   <div class="nav-item active" id="nav-games" onclick="switchTab('games')">Игры</div>
   <div class="nav-item" id="nav-upgrade" onclick="switchTab('upgrade')">
@@ -303,40 +301,37 @@
   <div class="nav-item" id="nav-profile" onclick="switchTab('profile')">Профиль</div>
 </div>
 
-<!-- Modal: Topup -->
 <div class="modal" id="topupModal">
   <div class="modal-sheet">
     <div class="m-title">Пополнение баланса</div>
-    <div class="m-sub">Курс: 100 ⭐️ = 1 GRAM</div>
+    <div class="m-sub">Курс: 100 Stars = 1 GRAM</div>
     <div class="stars-grid">
-      <button class="star-btn" onclick="buyStars(100)">100 ⭐️<small>1 GRAM</small></button>
-      <button class="star-btn" onclick="buyStars(250)">250 ⭐️<small>2.5 GRAM</small></button>
-      <button class="star-btn" onclick="buyStars(500)">500 ⭐️<small>5 GRAM</small></button>
-      <button class="star-btn" onclick="buyStars(1000)">1000 ⭐️<small>10 GRAM</small></button>
-      <button class="star-btn" onclick="buyStars(2500)">2500 ⭐️<small>25 GRAM</small></button>
-      <button class="star-btn" onclick="buyStars(5000)">5000 ⭐️<small>50 GRAM</small></button>
+      <button class="star-btn" onclick="buyStars(100)">100 Stars<small>1 GRAM</small></button>
+      <button class="star-btn" onclick="buyStars(250)">250 Stars<small>2.5 GRAM</small></button>
+      <button class="star-btn" onclick="buyStars(500)">500 Stars<small>5 GRAM</small></button>
+      <button class="star-btn" onclick="buyStars(1000)">1000 Stars<small>10 GRAM</small></button>
+      <button class="star-btn" onclick="buyStars(2500)">2500 Stars<small>25 GRAM</small></button>
+      <button class="star-btn" onclick="buyStars(5000)">5000 Stars<small>50 GRAM</small></button>
     </div>
     <button class="btn-close" onclick="closeModal('topupModal')">Закрыть</button>
   </div>
 </div>
 
-<!-- Modal: Withdraw / Target NFT -->
 <div class="modal" id="nftModal">
   <div class="modal-sheet">
-    <div class="m-title" id="nftModalTitle">🎁 Вывод NFT подарков</div>
+    <div class="m-title" id="nftModalTitle">Вывод NFT подарков</div>
     <div class="m-sub" id="nftModalSub">Выбери доступный подарок из наличия:</div>
     <div class="nft-grid" id="nftGrid"></div>
     <button class="btn-close" onclick="closeModal('nftModal')">Закрыть</button>
   </div>
 </div>
 
-<!-- Modal: Withdraw Success -->
 <div class="modal" id="successWdModal">
   <div class="modal-sheet">
-    <div class="m-title">✅ Заявка создана</div>
+    <div class="m-title">Заявка создана</div>
     <div class="m-sub" id="wdSummaryText" style="color:#fff; font-size:14px; margin-top:8px;"></div>
     <div class="m-sub">Напиши администратору в личные сообщения для получения подарка:</div>
-    <a id="adminTgLink" href="https://t.me/rubupgift" target="_blank" class="btn-tg-link">✉️ Написать @rubupgift</a>
+    <a id="adminTgLink" href="https://t.me/rubupgift" target="_blank" class="btn-tg-link">Написать @rubupgift</a>
     <button class="btn-close" onclick="closeModal('successWdModal')">Готово</button>
   </div>
 </div>
@@ -345,372 +340,20 @@
   const tg = window.Telegram.WebApp;
   tg.expand();
 
-  let currentBalance = 0;
-  let currentWagered = 0;
-  let currentMult = 2.0;
-  let currentRotation = 0;
-  let isSpinning = false;
-  let nftList = [];
-  let inventoryList = [];
-  let selectedTargetNft = null;
-  let adminUsername = "rubupgift";
-  let botUsername = "";
-  let userId = 0;
-
-  function switchTab(tab) {
-    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-    document.getElementById('scr-' + tab).classList.add('active');
-    const navEl = document.getElementById('nav-' + tab);
-    if (navEl) navEl.classList.add('active');
-    if (tab === 'profile') renderInventory();
-  }
-
-  function formatNum(n) {
-    return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
-  }
-
-  function updateRankUI() {
-    const orb = document.getElementById('rankOrb');
-    const lbl = document.getElementById('rankLabel');
-    const left = document.getElementById('rankLeft');
-    const fill = document.getElementById('rankFill');
-
-    if (currentWagered < 500000) {
-      const rem = Math.max(0, Math.round(500000 - currentWagered));
-      const pct = Math.min(100, Math.max(4, (currentWagered / 500000) * 100));
-      orb.className = 'rank-orb';
-      lbl.innerText = 'Новичок → Iron';
-      left.innerText = `еще ${formatNum(rem)} G`;
-      fill.style.width = pct + '%';
-    } else if (currentWagered < 1000000) {
-      const rem = Math.max(0, Math.round(1000000 - currentWagered));
-      const pct = Math.min(100, Math.max(4, ((currentWagered - 500000) / 500000) * 100));
-      orb.className = 'rank-orb iron';
-      lbl.innerText = 'Iron → Gold';
-      left.innerText = `еще ${formatNum(rem)} G`;
-      fill.style.width = pct + '%';
-    } else {
-      orb.className = 'rank-orb gold';
-      lbl.innerText = 'Gold League';
-      left.innerText = `${formatNum(Math.round(currentWagered))} G`;
-      fill.style.width = '100%';
-    }
-  }
-
-  async function loadUser() {
-    try {
-      const res = await fetch('/api/user', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ initData: tg.initData })
-      });
-      const data = await res.json();
-      if (data.balance !== undefined) {
-        currentBalance = data.balance;
-        document.getElementById('topBalance').innerText = data.balance.toFixed(2);
-        document.getElementById('profBalance').innerText = data.balance.toFixed(2);
-      }
-      if (data.wagered !== undefined) {
-        currentWagered = data.wagered;
-        updateRankUI();
-      }
-      if (data.refs !== undefined) document.getElementById('refCount').innerText = data.refs;
-      if (data.nfts) nftList = data.nfts;
-      if (data.inventory) {
-        inventoryList = data.inventory;
-        renderInventory();
-      }
-      if (data.admin_username) adminUsername = data.admin_username;
-      if (data.bot_username) botUsername = data.bot_username;
-      if (data.user_id) userId = data.user_id;
-    } catch (e) {}
-  }
-
-  function renderInventory() {
-    const grid = document.getElementById('invGrid');
-    const sum = document.getElementById('invSummary');
-    sum.innerText = `${inventoryList.length} подарков`;
-    grid.innerHTML = '';
-    if (!inventoryList.length) {
-      grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; color:#64748b; font-size:13px; padding:14px;">Инвентарь пуст</div>';
-      return;
-    }
-    inventoryList.forEach(item => {
-      const el = document.createElement('div');
-      el.className = 'inv-item';
-      el.innerHTML = `
-        <div style="display:flex; align-items:center; gap:8px;">
-          <span style="font-size:24px;">${item.icon}</span>
-          <div>
-            <div style="font-size:13px; font-weight:700;">${item.name}</div>
-            <div style="font-size:12px; color:#38bdf8; font-weight:800;">${item.price} GRAM</div>
-          </div>
-        </div>
-        <button class="nft-btn ${item.in_stock ? '' : 'disabled'}" ${item.in_stock ? `onclick="withdrawNft('${item.id}', ${item.inv_id})"` : 'disabled'}>
-          ${item.in_stock ? 'Вывести' : 'Нет в наличии'}
-        </button>
-      `;
-      grid.appendChild(el);
-    });
-  }
-
-  function setMult(mult, btn) {
-    if (isSpinning) return;
-    selectedTargetNft = null;
-    document.getElementById('targetIcon').innerText = '+';
-    document.getElementById('targetName').innerText = 'Выберите цель';
-    document.getElementById('targetSlotIcon').innerText = '+';
-    document.getElementById('targetSlotTitle').innerText = 'Выбрать';
-
-    currentMult = mult;
-    document.querySelectorAll('.m-chip').forEach(b => b.classList.remove('active'));
-    if (btn) btn.classList.add('active');
-    recalc();
-  }
-
-  function getVisualChance() {
-    return Math.min(95, (100 / currentMult) * 0.95);
-  }
-
-  function recalc() {
-    const bet = parseFloat(document.getElementById('betInput').value) || 0;
-    document.getElementById('betSlotTitle').innerText = bet.toFixed(2) + ' GRAM';
-    if (selectedTargetNft && bet > 0) {
-      currentMult = Math.min(20, Math.max(1.1, selectedTargetNft.price / bet));
-    }
-    const chance = getVisualChance();
-    document.getElementById('chanceVal').innerText = chance.toFixed(1) + ' %';
-    document.getElementById('wheelOuter').style.background = `conic-gradient(#7c69ef 0% ${chance}%, #222138 ${chance}% 100%)`;
-    if (selectedTargetNft) {
-      document.getElementById('winPreviewSub').innerText = `Цель: ${selectedTargetNft.name} (${selectedTargetNft.price} GRAM)`;
-    } else {
-      document.getElementById('winPreviewSub').innerText = `Выигрыш: ${(bet * currentMult).toFixed(2)} GRAM`;
-    }
-  }
-
-  async function playUpgrade() {
-    if (isSpinning) return;
-    const bet = parseFloat(document.getElementById('betInput').value);
-    if (!bet || bet < 0.05) return tg.showAlert('Минимальная ставка 0.05 GRAM');
-
-    isSpinning = true;
-    document.getElementById('playBtn').disabled = true;
-    document.getElementById('statusMsg').innerText = '';
-
-    try {
-      const res = await fetch('/api/upgrade', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          initData: tg.initData,
-          bet: bet,
-          multiplier: currentMult,
-          target_nft_id: selectedTargetNft ? selectedTargetNft.id : null
-        })
-      });
-      const data = await res.json();
-
-      if (!res.ok) {
-        tg.showAlert(data.detail || 'Ошибка');
-        isSpinning = false;
-        document.getElementById('playBtn').disabled = false;
-        return;
-      }
-
-      const visualChance = getVisualChance();
-      const winAngle = (visualChance / 100) * 360;
-      let targetAngle;
-      if (data.win) {
-        targetAngle = Math.random() * (winAngle - 10) + 5;
-      } else {
-        targetAngle = winAngle + 10 + Math.random() * (360 - winAngle - 20);
-      }
-
-      currentRotation += 1440 + (360 - (currentRotation % 360)) + targetAngle;
-      document.getElementById('spinnerTrack').style.transform = `rotate(${currentRotation}deg)`;
-
-      setTimeout(() => {
-        currentBalance = data.balance;
-        currentWagered = data.wagered || currentWagered;
-        document.getElementById('topBalance').innerText = data.balance.toFixed(2);
-        document.getElementById('profBalance').innerText = data.balance.toFixed(2);
-        updateRankUI();
-        if (data.inventory) {
-          inventoryList = data.inventory;
-          renderInventory();
-        }
-        const msg = document.getElementById('statusMsg');
-        if (data.win) {
-          msg.style.color = '#22c55e';
-          msg.innerText = selectedTargetNft
-            ? `🎉 Подарок ${selectedTargetNft.name} добавлен в инвентарь!`
-            : `🎉 Успех! +${data.win_amount.toFixed(2)} GRAM`;
-        } else {
-          msg.style.color = '#ef4444';
-          msg.innerText = '❌ Не повезло, попробуй ещё раз';
-        }
-        isSpinning = false;
-        document.getElementById('playBtn').disabled = false;
-      }, 3300);
-
-    } catch (e) {
-      tg.showAlert('Ошибка соединения');
-      isSpinning = false;
-      document.getElementById('playBtn').disabled = false;
-    }
-  }
-
-  function openTopup() {
-    document.getElementById('topupModal').style.display = 'flex';
-  }
-
-  async function openTargetSelect() {
-    await loadUser();
-    document.getElementById('nftModalTitle').innerText = '🎯 Выберите цель апгрейда';
-    document.getElementById('nftModalSub').innerText = 'Подарок попадёт в инвентарь при успешном улучшении';
-    const grid = document.getElementById('nftGrid');
-    grid.innerHTML = '';
-    nftList.forEach(item => {
-      const box = document.createElement('div');
-      box.className = 'nft-box';
-      box.innerHTML = `
-        <div>
-          <div style="font-size:26px; margin-bottom:4px;">${item.icon}</div>
-          <div style="font-size:13px; font-weight:700;">${item.name}</div>
-          <div style="font-size:12px; color:#38bdf8; font-weight:800; margin-top:2px;">${item.price} GRAM</div>
-        </div>
-        <button class="nft-btn" onclick="selectTarget('${item.id}')">Выбрать</button>
-      `;
-      grid.appendChild(box);
-    });
-    document.getElementById('nftModal').style.display = 'flex';
-  }
-
-  function selectTarget(nftId) {
-    const item = nftList.find(n => n.id === nftId);
-    if (!item) return;
-    selectedTargetNft = item;
-    document.querySelectorAll('.m-chip').forEach(b => b.classList.remove('active'));
-    document.getElementById('targetIcon').innerText = item.icon;
-    document.getElementById('targetName').innerText = item.name;
-    document.getElementById('targetSlotIcon').innerText = item.icon;
-    document.getElementById('targetSlotTitle').innerText = item.name;
-    closeModal('nftModal');
-    recalc();
-  }
-
-  async function openWithdraw() {
-    await loadUser();
-    document.getElementById('nftModalTitle').innerText = '🎁 Вывод NFT подарков';
-    document.getElementById('nftModalSub').innerText = 'Многие NFT быстро разбирают. Доступные для вывода:';
-    const grid = document.getElementById('nftGrid');
-    grid.innerHTML = '';
-    nftList.forEach(item => {
-      const box = document.createElement('div');
-      box.className = 'nft-box' + (item.in_stock ? '' : ' out');
-      let btn = '';
-      if (!item.in_stock) {
-        btn = `<button class="nft-btn disabled" disabled>Нет в наличии</button>`;
-      } else if (currentBalance < item.price) {
-        btn = `<button class="nft-btn disabled" disabled>Мало GRAM</button>`;
-      } else {
-        btn = `<button class="nft-btn" onclick="withdrawNft('${item.id}', null)">Вывести</button>`;
-      }
-      box.innerHTML = `
-        <div>
-          <div style="font-size:26px; margin-bottom:4px;">${item.icon}</div>
-          <div style="font-size:13px; font-weight:700;">${item.name}</div>
-          <div style="font-size:12px; color:#38bdf8; font-weight:800; margin-top:2px;">${item.price} GRAM</div>
-        </div>
-        ${btn}
-      `;
-      grid.appendChild(box);
-    });
-    document.getElementById('nftModal').style.display = 'flex';
-  }
-
-  async function withdrawNft(nftId, invId) {
-    try {
-      const res = await fetch('/api/withdraw_nft', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ initData: tg.initData, nft_id: nftId, inv_id: invId })
-      });
-      const data = await res.json();
-      if (!res.ok) return tg.showAlert(data.detail || 'Ошибка вывода');
-
-      currentBalance = data.balance;
-      document.getElementById('topBalance').innerText = data.balance.toFixed(2);
-      document.getElementById('profBalance').innerText = data.balance.toFixed(2);
-      if (data.inventory) {
-        inventoryList = data.inventory;
-        renderInventory();
-      }
-      closeModal('nftModal');
-
-      const text = encodeURIComponent(`Привет! Вывел подарок ${data.nft_name} (${data.price} GRAM) в RubUP.`);
-      document.getElementById('wdSummaryText').innerHTML = `Подарок: <b>${data.nft_icon} ${data.nft_name}</b> (${data.price} GRAM)`;
-      document.getElementById('adminTgLink').href = `https://t.me/${data.admin_username}?text=${text}`;
-      document.getElementById('successWdModal').style.display = 'flex';
-    } catch (e) {
-      tg.showAlert('Ошибка сети');
-    }
-  }
-
-  async function activatePromo() {
-    const code = document.getElementById('promoInp').value.trim();
-    if (!code) return tg.showAlert('Введи промокод');
-    try {
-      const res = await fetch('/api/promo', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ initData: tg.initData, code: code })
-      });
-      const data = await res.json();
-      if (!res.ok) return tg.showAlert(data.detail || 'Ошибка');
-      currentBalance = data.balance;
-      document.getElementById('topBalance').innerText = data.balance.toFixed(2);
-      document.getElementById('profBalance').innerText = data.balance.toFixed(2);
-      document.getElementById('promoInp').value = '';
-      tg.showAlert('✅ ' + data.message);
-    } catch (e) {
-      tg.showAlert('Ошибка сети');
-    }
-  }
-
-  function inviteFriend() {
-    if (!botUsername || !userId) return;
-    const link = `https://t.me/${botUsername}?start=ref_${userId}`;
-    const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent('Залетай в RubUP и забирай NFT подарки!')}`;
-    tg.openTelegramLink(shareUrl);
-  }
-
-  function closeModal(id) {
-    document.getElementById(id).style.display = 'none';
-  }
-
-  async function buyStars(stars) {
-    closeModal('topupModal');
-    try {
-      const res = await fetch('/api/create_invoice', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ initData: tg.initData, stars: stars })
-      });
-      const data = await res.json();
-      if (data.invoice_link) {
-        tg.openInvoice(data.invoice_link, function(status) {
-          if (status === 'paid') setTimeout(loadUser, 1000);
-        });
-      }
-    } catch (e) {
-      tg.showAlert('Не удалось создать счёт');
-    }
-  }
-
-  recalc();
-  loadUser();
-</script>
-</body>
-</html>
+  // Кастомные 3D-векторные SVG иконки с градиентами для каждого подарка
+  const NFT_SVGS = {
+    heart_box: `<svg viewBox="0 0 64 64"><defs><linearGradient id="g_hb" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#ff6b9d"/><stop offset="100%" stop-color="#be123c"/></linearGradient><linearGradient id="g_rib" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#fde047"/><stop offset="100%" stop-color="#f59e0b"/></linearGradient></defs><path d="M32 56C32 56 8 41 8 22.5C8 14.5 14.5 9 21.5 9C26 9 30 11.5 32 15C34 11.5 38 9 42.5 9C49.5 9 56 14.5 56 22.5C56 41 32 56 32 56Z" fill="url(#g_hb)"/><path d="M10 27H54V33H10V27Z" fill="url(#g_rib)"/><path d="M29 12H35V53H29V12Z" fill="url(#g_rib)"/><ellipse cx="20" cy="18" rx="4" ry="2.5" transform="rotate(-30 20 18)" fill="#fff" opacity="0.45"/></svg>`,
+    teddy_bear: `<svg viewBox="0 0 64 64"><defs><radialGradient id="g_tb" cx="35%" cy="30%" r="70%"><stop offset="0%" stop-color="#e5a96c"/><stop offset="100%" stop-color="#854d27"/></radialGradient></defs><circle cx="17" cy="18" r="7" fill="url(#g_tb)"/><circle cx="47" cy="18" r="7" fill="url(#g_tb)"/><circle cx="17" cy="18" r="3.5" fill="#f3d5b5"/><circle cx="47" cy="18" r="3.5" fill="#f3d5b5"/><ellipse cx="32" cy="44" rx="15" ry="14" fill="url(#g_tb)"/><circle cx="32" cy="24" r="14" fill="url(#g_tb)"/><ellipse cx="32" cy="27" rx="6.5" ry="5" fill="#f3d5b5"/><circle cx="27" cy="21" r="2" fill="#1e1b18"/><circle cx="37" cy="21" r="2" fill="#1e1b18"/><ellipse cx="32" cy="25.5" rx="2.5" ry="1.8" fill="#292524"/><circle cx="18" cy="52" r="5.5" fill="url(#g_tb)"/><circle cx="46" cy="52" r="5.5" fill="url(#g_tb)"/></svg>`,
+    gift_box: `<svg viewBox="0 0 64 64"><defs><linearGradient id="g_gb" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#fbbf24"/><stop offset="100%" stop-color="#d97706"/></linearGradient><linearGradient id="g_gr" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#f43f5e"/><stop offset="100%" stop-color="#be123c"/></linearGradient></defs><rect x="12" y="26" width="40" height="30" rx="5" fill="url(#g_gb)"/><rect x="9" y="19" width="46" height="9" rx="3" fill="#fcd34d"/><rect x="28" y="19" width="8" height="37" fill="url(#g_gr)"/><path d="M32 19C26 11 17 11 19 17C20 19 32 19 32 19Z" fill="url(#g_gr)"/><path d="M32 19C38 11 47 11 45 17C44 19 32 19 32 19Z" fill="url(#g_gr)"/></svg>`,
+    red_rose: `<svg viewBox="0 0 64 64"><defs><radialGradient id="g_rs" cx="40%" cy="30%" r="70%"><stop offset="0%" stop-color="#fb7185"/><stop offset="100%" stop-color="#9f1239"/></radialGradient></defs><path d="M32 34V58" stroke="#16a34a" stroke-width="4" stroke-linecap="round"/><path d="M32 46C24 46 20 40 20 40C20 40 26 38 32 43Z" fill="#22c55e"/><path d="M32 42C40 42 44 36 44 36C44 36 38 34 32 39Z" fill="#16a34a"/><path d="M18 20C18 11 46 11 46 20C46 31 38 37 32 37C26 37 18 31 18 20Z" fill="url(#g_rs)"/><path d="M23 18C26 14 38 14 41 18C37 22 27 22 23 18Z" fill="#fda4af" opacity="0.6"/></svg>`,
+    cake_50: `<svg viewBox="0 0 64 64"><defs><linearGradient id="g_ck" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#f8fafc"/><stop offset="100%" stop-color="#cbd5e1"/></linearGradient></defs><rect x="11" y="30" width="42" height="24" rx="6" fill="url(#g_ck)"/><path d="M11 34C16 39 21 32 26 37C31 41 35 33 40 37C45 41 49 33 53 36V30C53 27 50 25 47 25H17C14 25 11 27 11 30V34Z" fill="#f472b6"/><rect x="21" y="15" width="4" height="10" rx="2" fill="#38bdf8"/><rect x="30" y="13" width="4" height="12" rx="2" fill="#a855f7"/><rect x="39" y="15" width="4" height="10" rx="2" fill="#f43f5e"/><circle cx="23" cy="11" r="2.5" fill="#fde047"/><circle cx="32" cy="9" r="2.5" fill="#fde047"/><circle cx="41" cy="11" r="2.5" fill="#fde047"/></svg>`,
+    rocket_50: `<svg viewBox="0 0 64 64"><defs><linearGradient id="g_rk" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#f8fafc"/><stop offset="100%" stop-color="#94a3b8"/></linearGradient><linearGradient id="g_rkn" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#f43f5e"/><stop offset="100%" stop-color="#be123c"/></linearGradient></defs><path d="M14 50L10 54L18 52L14 50Z" fill="#f59e0b"/><path d="M15 41L8 46L18 48L15 41Z" fill="url(#g_rkn)"/><path d="M23 49L18 56L16 46L23 49Z" fill="url(#g_rkn)"/><path d="M52 12C38 12 24 22 17 39L25 47C42 40 52 26 52 12Z" fill="url(#g_rk)"/><path d="M52 12C45 12 39 14 35 17L47 29C50 25 52 19 52 12Z" fill="url(#g_rkn)"/><circle cx="35" cy="29" r="5" fill="#0ea5e9" stroke="#e2e8f0" stroke-width="2"/></svg>`,
+    trophy_100: `<svg viewBox="0 0 64 64"><defs><linearGradient id="g_tr" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#fde047"/><stop offset="100%" stop-color="#d97706"/></linearGradient></defs><path d="M18 16H11C11 26 16 31 21 31" fill="none" stroke="url(#g_tr)" stroke-width="4" stroke-linecap="round"/><path d="M46 16H53C53 26 48 31 43 31" fill="none" stroke="url(#g_tr)" stroke-width="4" stroke-linecap="round"/><path d="M18 12H46V26C46 35 39 41 32 41C25 41 18 35 18 26V12Z" fill="url(#g_tr)"/><rect x="29" y="40" width="6" height="10" fill="#b45309"/><rect x="20" y="50" width="24" height="6" rx="3" fill="url(#g_tr)"/><polygon points="32,18 34,23 39,23 35,26 36,31 32,28 28,31 29,26 25,23 30,23" fill="#fff" opacity="0.7"/></svg>`,
+    diamond_100: `<svg viewBox="0 0 64 64"><defs><linearGradient id="g_dm" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#7dd3fc"/><stop offset="50%" stop-color="#0284c7"/><stop offset="100%" stop-color="#1e3a8a"/></linearGradient></defs><polygon points="20,12 44,12 56,26 32,54 8,26" fill="url(#g_dm)"/><polygon points="20,12 44,12 38,26 26,26" fill="#bae6fd" opacity="0.7"/><polygon points="26,26 38,26 32,54" fill="#38bdf8" opacity="0.55"/></svg>`,
+    ring_100: `<svg viewBox="0 0 64 64"><defs><linearGradient id="g_rg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#f1f5f9"/><stop offset="100%" stop-color="#64748b"/></linearGradient></defs><circle cx="32" cy="38" r="16" fill="none" stroke="url(#g_rg)" stroke-width="6"/><polygon points="25,14 39,14 43,20 32,27 21,20" fill="#38bdf8"/><polygon points="28,14 36,14 32,27" fill="#bae6fd"/></svg>`,
+    voodoo_doll: `<svg viewBox="0 0 64 64"><defs><radialGradient id="g_vd" cx="40%" cy="30%" r="70%"><stop offset="0%" stop-color="#d97706"/><stop offset="100%" stop-color="#78350f"/></radialGradient></defs><circle cx="32" cy="20" r="12" fill="url(#g_vd)"/><path d="M16 34H48L42 42L46 56H35L32 47L29 56H18L22 42L16 34Z" fill="url(#g_vd)"/><path d="M25 17L29 21M29 17L25 21" stroke="#1c1917" stroke-width="2.2" stroke-linecap="round"/><circle cx="37" cy="19" r="2.5" fill="#ef4444"/><line x1="42" y1="14" x2="52" y2="6" stroke="#cbd5e1" stroke-width="2.5"/><circle cx="53" cy="6" r="3.5" fill="#ef4444"/></svg>`,
+    crystal_ball: `<svg viewBox="0 0 64 64"><defs><radialGradient id="g_cb" cx="35%" cy="30%" r="70%"><stop offset="0%" stop-color="#e879f9"/><stop offset="55%" stop-color="#7e22ce"/><stop offset="100%" stop-color="#3b0764"/></radialGradient></defs><circle cx="32" cy="28" r="20" fill="url(#g_cb)"/><path d="M16 48H48L52 56H12L16 48Z" fill="#4c1d95"/><circle cx="32" cy="27" r="7" fill="#f3e8ff" opacity="0.85"/><circle cx="29" cy="26" r="1.5" fill="#581c87"/><circle cx="35" cy="26" r="1.5" fill="#581c87"/><ellipse cx="23" cy="18" rx="5" ry="2.5" transform="rotate(-35 23 18)" fill="#fff" opacity="0.5"/></svg>`,
+    love_potion: `<svg viewBox="0 0 64 64"><defs><radialGradient id="g_lp" cx="40%" cy="35%" r="70%"><stop offset="0%" stop-color="#f472b6"/><stop offset="100%" stop-color="#9d174d"/></radialGradient></defs><rect x="28" y="8" width="8" height="7" rx="2" fill="#d97706"/><rect x="25" y="14" width="14" height="5" rx="2" fill="#f472b6"/><path d="M32 56C32 56 12 43 12 28C12 21 17 17 23 17C27 17 30 19 32 22C34 19 37 17 41 17C47 17 52 21 52 28C52 43 32 56 32 56Z" fill="url(#g_lp)"/><ellipse cx="22" cy="26" rx="4" ry="2" transform="rotate(-30 22 26)" fill="#fff" opacity="0.5"/></svg>`,
+    skull_flower: `<svg viewBox="0 0 64 64"><defs><radialGradient id="g_sf" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#c084fc"/><stop offset="100%" stop-color="#6b21a8"/></radialGradient></defs><circle cx="32" cy="14" r="9" fill="url(#g_sf)"/><circle cx="32" cy="50" r="9" fill="url(#g_sf)"/><circle cx="14" cy="32" r="9" fill="url(#g_sf)"/><circle cx="50" cy="32" r="9" fill="url(#g_sf)"/><circle cx="19" cy="19" r="8" fill="#a855f7"/><circle cx="45" cy="19" r="8" fill="#a855f7"/><circle cx="19" cy="45" r="8" fill="#a855f7"/><circle cx="45" cy="45" r="8" fill="#a855f7"/><circle cx="32" cy="32" r="11" fill="#f8fafc"/><circle cx="28" cy="30" r="2.2" fill="#1e1b4b"/><circle cx="36" cy="30" r="2.2" fill="#1e1b4b"/></svg>`,
+    vintage_cigar: `<svg viewBox="0 0 64 64"><defs><linearGradient id="g_cg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#b45309"/><stop offset="100%" stop-color="#451a03"/></linearGradient></defs><rect x="10" y="28" width="42" height="12" rx="5" transform="rotate(-28 32 34)" fill="url(#g_cg)"/><rect x="26" y="26" width="7" height="12" transform="rotate(-28 32 34)" fill="#facc15"/><circle cx="49" cy="24" r="5" fill="#ef4444"/><path d="M51 16C54 12 49 9 53 5" fill="none" stroke="#94a3b8" stroke-width="2.5" stroke-linecap="round"/></svg>`,
+    astral_shard: `<svg viewBox="0 0 64 64"><defs><linearGradient id="g_as" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#a5f3fc"/><stop offset="50%" stop-color="#818cf8"/><stop offset="100%" stop-color="#c084fc"/></linearGradient></defs><polygon points="32,6 48,24 42,56 22,56 16,24" fill="url(#g_as)"/><polygon points="
