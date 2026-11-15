@@ -18,10 +18,10 @@ import uvicorn
 
 BOT_TOKEN = "1780246830:TqjCrlBhmwucsYl-bfkJmY5bUr5r52bdOlD"
 OCEANGRAM_API = "https://oceanment.2-26-197-16.sslip.io"
-WEBAPP_URL = "https://твой-домен.onrender.com"  # Заменишь на ссылку с Render после деплоя
-STARS_TO_RUB_RATE = 1.5  # Курс: 1 звезда = 1.5 рубля на баланс
+WEBAPP_URL = "https://твой-домен.onrender.com"
+STARS_TO_RUB_RATE = 1.5
+HIGH_ROLL_LIMIT_RUB = 10000 * STARS_TO_RUB_RATE
 
-# Подключаем бота к серверу приватки Океанграм
 session = AiohttpSession(
     api=TelegramAPIServer.from_base(OCEANGRAM_API)
 )
@@ -36,7 +36,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- БАЗА ДАННЫХ (SQLite) ---
 async def init_db():
     async with aiosqlite.connect("oceangram_rubup.db") as db:
         await db.execute("""
@@ -45,7 +44,22 @@ async def init_db():
                 balance REAL DEFAULT 0.0
             )
         """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS stats (
+                key TEXT PRIMARY KEY,
+                val INTEGER DEFAULT 0
+            )
+        """)
+        await db.execute("INSERT OR IGNORE INTO stats (key, val) VALUES ('high_roll_count', 0)")
         await db.commit()
+
+async def next_high_roll_number() -> int:
+    async with aiosqlite.connect("oceangram_rubup.db") as db:
+        await db.execute("UPDATE stats SET val = val + 1 WHERE key = 'high_roll_count'")
+        await db.commit()
+        async with db.execute("SELECT val FROM stats WHERE key = 'high_roll_count'") as cursor:
+            row = await cursor.fetchone()
+            return row[0] if row else 1
 
 async def get_balance(user_id: int) -> float:
     async with aiosqlite.connect("oceangram_rubup.db") as db:
@@ -62,7 +76,6 @@ async def update_balance(user_id: int, delta: float) -> float:
         await db.commit()
     return await get_balance(user_id)
 
-# --- ПРОВЕРКА ПОДПИСИ TELEGRAM WEBAPP ---
 def verify_telegram_webapp(init_data: str) -> int:
     parsed = dict(parse_qsl(init_data))
     if "hash" not in parsed:
@@ -76,7 +89,6 @@ def verify_telegram_webapp(init_data: str) -> int:
     user_data = json.loads(parsed["user"])
     return int(user_data["id"])
 
-# --- КОМАНДЫ БОТА И ОПЛАТА STARS ---
 @dp.message(CommandStart())
 async def cmd_start(message: types.Message):
     await get_balance(message.from_user.id)
@@ -103,7 +115,6 @@ async def successful_payment_handler(message: types.Message):
     new_bal = await update_balance(message.from_user.id, rub_to_add)
     await message.answer(f"✅ Оплата {stars_paid} ⭐️ прошла! Начислено {rub_to_add} ₽. Баланс: {new_bal} ₽")
 
-# --- API ДЛЯ MINI APP ---
 @app.get("/", response_class=HTMLResponse)
 async def serve_webapp():
     with open("index.html", "r", encoding="utf-8") as f:
@@ -149,17 +160,28 @@ async def api_upgrade(request: Request):
     if bet > current_bal:
         raise HTTPException(status_code=400, detail="Недостаточно рублей на балансе")
 
-    win_chance = (100.0 / multiplier) * 0.95
+    standard_chance = (100.0 / multiplier) * 0.95
+    potential_win = bet * multiplier
+
+    if bet > HIGH_ROLL_LIMIT_RUB or potential_win > HIGH_ROLL_LIMIT_RUB:
+        attempt_num = await next_high_roll_number()
+        if attempt_num % 3 == 0:
+            win_chance = standard_chance
+        else:
+            win_chance = 5.0
+    else:
+        win_chance = standard_chance
+
     roll = secrets.randbelow(10000) / 100.0
 
     if roll <= win_chance:
-        win_amount = round(bet * multiplier, 2)
+        win_amount = round(potential_win, 2)
         profit = round(win_amount - bet, 2)
         new_bal = await update_balance(user_id, profit)
-        return {"win": True, "balance": new_bal, "win_amount": win_amount, "chance": round(win_chance, 1)}
+        return {"win": True, "balance": new_bal, "win_amount": win_amount, "chance": round(standard_chance, 1)}
     else:
         new_bal = await update_balance(user_id, -bet)
-        return {"win": False, "balance": new_bal, "win_amount": 0, "chance": round(win_chance, 1)}
+        return {"win": False, "balance": new_bal, "win_amount": 0, "chance": round(standard_chance, 1)}
 
 async def main():
     await init_db()
