@@ -27,8 +27,8 @@ BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip()
 if not BOT_TOKEN:
     raise RuntimeError("Не задана переменная окружения BOT_TOKEN в настройках Amvera!")
 
-# Постоянное хранилище Amvera (/data не стирается при обновлениях и перезапусках)
 DB_DIR = "/data" if os.path.isdir("/data") else "."
+os.makedirs(DB_DIR, exist_ok=True)
 DB_PATH = os.path.join(DB_DIR, "oceangram_rubup.db")
 
 OCEANGRAM_API = "https://oceanment.2-26-197-16.sslip.io"
@@ -90,7 +90,6 @@ async def check_channel_sub(user_id: int) -> bool:
             return False
         return True
     except Exception:
-        # Если бот не добавлен в канал или канал недоступен — не ломаем вход
         return True
 
 
@@ -331,6 +330,7 @@ async def update_balance(user_id: int, delta: float, add_wager: float = 0.0) -> 
 
 
 def extract_webapp_user(data: dict) -> dict:
+    # 1. Приоритет: подписанный initData от клиента Telegram/OceanGram
     init_data = data.get("initData", "")
     if init_data:
         try:
@@ -345,21 +345,23 @@ def extract_webapp_user(data: dict) -> dict:
         except Exception:
             pass
 
+    # 2. Приоритет: реальный user из tg.initDataUnsafe.user (индивидуальный для каждого игрока)
+    fallback_user = data.get("user")
+    if isinstance(fallback_user, dict) and str(fallback_user.get("id", "")).isdigit():
+        if int(fallback_user["id"]) > 0:
+            return fallback_user
+
+    # 3. Запасной вариант: подписанный uid из личной ссылки /start
     uid_raw = str(data.get("uid", ""))
     sig_raw = str(data.get("sig", ""))
     if uid_raw.isdigit() and int(uid_raw) > 0:
         uid_int = int(uid_raw)
         if verify_uid_sig(uid_int, sig_raw):
-            fallback_user = data.get("user") if isinstance(data.get("user"), dict) else {}
             return {
                 "id": uid_int,
-                "username": fallback_user.get("username", ""),
-                "first_name": fallback_user.get("first_name", "Игрок")
+                "username": "",
+                "first_name": "Игрок"
             }
-
-    fallback_user = data.get("user")
-    if isinstance(fallback_user, dict) and str(fallback_user.get("id", "")).isdigit():
-        return fallback_user
 
     raise HTTPException(status_code=401, detail="Нажми /start в боте и открой через новую кнопку")
 
@@ -404,9 +406,10 @@ async def send_welcome_with_app(chat_id: int, user_id: int):
     sig = make_uid_sig(user_id)
     personal_url = f"{WEBAPP_URL}?uid={user_id}&sig={sig}"
     try:
+        # Чистый URL в меню бота, чтобы каждый игрок заходил под своим ID
         await bot.set_chat_menu_button(
             chat_id=chat_id,
-            menu_button=MenuButtonWebApp(text="RubUP", web_app=WebAppInfo(url=personal_url))
+            menu_button=MenuButtonWebApp(text="RubUP", web_app=WebAppInfo(url=WEBAPP_URL))
         )
     except Exception:
         pass
@@ -416,7 +419,7 @@ async def send_welcome_with_app(chat_id: int, user_id: int):
     ])
     await bot.send_message(
         chat_id=chat_id,
-        text="✅ Подписка подтверждена!\nДобро пожаловать в <b>RubUP</b> — жми кнопку <b>RubUP</b> внизу слева или кнопку ниже:",
+        text="✅ Подписка подтверждена!\nДобро пожаловать в <b>RubUP</b> — жми кнопку ниже, чтобы открыть игру:",
         reply_markup=kb,
         parse_mode="HTML"
     )
@@ -997,7 +1000,6 @@ async def cb_stats(call: types.CallbackQuery):
     )
 
 
-# Постраничная история игр (по 10 записей на страницу)
 @dp.callback_query(F.data.startswith("adm_game_history_"))
 async def cb_adm_game_history(call: types.CallbackQuery):
     if not await is_admin(call.from_user):
