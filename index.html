@@ -1219,23 +1219,18 @@
   }
 
   function getAuthPayload(extra = {}) {
-    const unsafeUser = (tg.initDataUnsafe && tg.initDataUnsafe.user) ? tg.initDataUnsafe.user : null;
-    const realUid = (unsafeUser && unsafeUser.id)
-      ? String(unsafeUser.id)
-      : (queryUid || localStorage.getItem('rubup_uid') || "");
+    const unsafeUser = (tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.id)
+      ? tg.initDataUnsafe.user
+      : null;
 
-    if (realUid) localStorage.setItem('rubup_uid', realUid);
-    if (querySig) localStorage.setItem('rubup_sig', querySig);
-
-    const effectiveSig = (unsafeUser && unsafeUser.id && queryUid && String(unsafeUser.id) !== queryUid)
-      ? ""
-      : (querySig || localStorage.getItem('rubup_sig') || "");
+    // Если клиент передал реального пользователя и он НЕ совпадает с uid из пересланной ссылки — игнорируем чужую ссылку
+    const isForeignLink = unsafeUser && queryUid && String(unsafeUser.id) !== String(queryUid);
 
     return Object.assign({
       initData: tg.initData || "",
       user: unsafeUser,
-      uid: realUid,
-      sig: effectiveSig
+      uid: isForeignLink ? String(unsafeUser.id) : (queryUid || (unsafeUser ? String(unsafeUser.id) : "")),
+      sig: isForeignLink ? "" : (querySig || "")
     }, extra);
   }
 
@@ -1395,8 +1390,6 @@
 
       showSubGate(false);
       const data = await res.json();
-      if (data.user_id) localStorage.setItem('rubup_uid', String(data.user_id));
-      if (data.sig) localStorage.setItem('rubup_sig', String(data.sig));
       if (data.balance !== undefined) setBalanceUI(data.balance, data.wagered);
       if (data.admin_username) adminUsername = data.admin_username;
 
