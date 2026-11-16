@@ -4,6 +4,7 @@ import hashlib
 import hmac
 import json
 import math
+import os
 import secrets
 import time
 from urllib.parse import parse_qsl
@@ -22,12 +23,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 import uvicorn
 
-BOT_TOKEN = "1780246830:TqjCrlBhmwucsYl-bfkJmY5bUr5r52bdOlD"
+BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip()
+if not BOT_TOKEN:
+    raise RuntimeError("Не задана переменная окружения BOT_TOKEN в настройках Amvera!")
+
 OCEANGRAM_API = "https://oceanment.2-26-197-16.sslip.io"
 WEBAPP_URL = "https://rubup-borohezh.mia0.amvera.tech"
 OWNER_USERNAME = "rubupgift"
 STARS_PER_GRAM = 100.0
-X2_MAX_DEPOSIT_GRAM = 5000.0
 MAX_SINGLE_WIN_GRAM = 25000.0
 
 session = AiohttpSession(
@@ -127,13 +130,13 @@ async def init_db():
                 first_name TEXT DEFAULT 'Игрок',
                 balance REAL DEFAULT 0.0,
                 wagered REAL DEFAULT 0.0,
-                x2_dep_used INTEGER DEFAULT 0
+                dep_slot INTEGER DEFAULT 0
             )
         """)
         for col_sql in [
             "ALTER TABLE users_gram ADD COLUMN username TEXT DEFAULT ''",
             "ALTER TABLE users_gram ADD COLUMN first_name TEXT DEFAULT 'Игрок'",
-            "ALTER TABLE users_gram ADD COLUMN x2_dep_used INTEGER DEFAULT 0",
+            "ALTER TABLE users_gram ADD COLUMN dep_slot INTEGER DEFAULT 0",
         ]:
             try:
                 await db.execute(col_sql)
@@ -196,38 +199,26 @@ async def init_db():
             )
         """)
         await db.execute("INSERT OR IGNORE INTO settings (key, val) VALUES ('win_chance', 'mode_1')")
-        await db.execute("INSERT OR IGNORE INTO settings (key, val) VALUES ('spin_count', '0')")
+        await db.execute("INSERT OR IGNORE INTO settings (key, val) VALUES ('upgrade_cycle', '0')")
+        await db.execute("INSERT OR IGNORE INTO settings (key, val) VALUES ('dep_counter', '0')")
         await db.commit()
 
 
-async def is_first_two_eligible(user_id: int) -> bool:
+async def next_upgrade_cycle_pos() -> int:
+    """Счётчик от 1 до 10: 1..9 — жёсткий слив, 10 — выдача на x2-x4"""
     async with aiosqlite.connect("oceangram_rubup.db") as db:
-        async with db.execute("SELECT user_id, x2_dep_used FROM users_gram ORDER BY ROWID ASC LIMIT 2") as cur:
-            first_two = await cur.fetchall()
-        for uid, used in first_two:
-            if uid == user_id and int(used or 0) == 0:
-                return True
-    return False
-
-
-async def record_game_event(user_id: int, game: str, bet: float, mult: float, win: float):
-    now = int(time.time())
-    async with aiosqlite.connect("oceangram_rubup.db") as db:
-        await db.execute(
-            "INSERT INTO game_history (user_id, game, bet, mult, win, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-            (user_id, game, round(bet, 2), round(mult, 2), round(win, 2), now)
-        )
-        await db.execute("DELETE FROM game_history WHERE user_id = ? AND id NOT IN (SELECT id FROM game_history WHERE user_id = ? ORDER BY id DESC LIMIT 25)", (user_id, user_id))
+        await db.execute("UPDATE settings SET val = CAST((CAST(val AS INTEGER) % 10) + 1 AS TEXT) WHERE key = 'upgrade_cycle'")
         await db.commit()
-
-
-async def next_spin_number() -> int:
-    async with aiosqlite.connect("oceangram_rubup.db") as db:
-        await db.execute("UPDATE settings SET val = CAST(CAST(val AS INTEGER) + 1 AS TEXT) WHERE key = 'spin_count'")
-        await db.commit()
-        async with db.execute("SELECT val FROM settings WHERE key = 'spin_count'") as cursor:
+        async with db.execute("SELECT val FROM settings WHERE key = 'upgrade_cycle'") as cursor:
             row = await cursor.fetchone()
             return int(row[0]) if row else 1
+
+
+async def get_upgrade_cycle_pos() -> int:
+    async with aiosqlite.connect("oceangram_rubup.db") as db:
+        async with db.execute("SELECT val FROM settings WHERE key = 'upgrade_cycle'") as cursor:
+            row = await cursor.fetchone()
+            return int(row[0]) if row else 0
 
 
 async def get_custom_chance() -> str:
@@ -243,19 +234,15 @@ async def set_custom_chance(val: str):
         await db.commit()
 
 
-async def resolve_win_chance(standard_chance: float) -> float:
-    mode = await get_custom_chance()
-    if mode == "mode_1":
-        spin_num = await next_spin_number()
-        return standard_chance if (spin_num % 3 == 0) else 5.0
-    elif mode == "auto":
-        return standard_chance
-    else:
-        try:
-            val = float(mode)
-            return max(0.0, min(95.0, val))
-        except ValueError:
-            return standard_chance
+async def record_game_event(user_id: int, game: str, bet: float, mult: float, win: float):
+    now = int(time.time())
+    async with aiosqlite.connect("oceangram_rubup.db") as db:
+        await db.execute(
+            "INSERT INTO game_history (user_id, game, bet, mult, win, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+            (user_id, game, round(bet, 2), round(mult, 2), round(win, 2), now)
+        )
+        await db.execute("DELETE FROM game_history WHERE user_id = ? AND id NOT IN (SELECT id FROM game_history WHERE user_id = ? ORDER BY id DESC LIMIT 25)", (user_id, user_id))
+        await db.commit()
 
 
 async def ensure_user(user_id: int, username: str = "", first_name: str = "Игрок") -> dict:
@@ -263,7 +250,7 @@ async def ensure_user(user_id: int, username: str = "", first_name: str = "Иг�
     clean_fname = (first_name or "").strip() or "Игрок"
     async with aiosqlite.connect("oceangram_rubup.db") as db:
         await db.execute(
-            "INSERT OR IGNORE INTO users_gram (user_id, username, first_name, balance, wagered, x2_dep_used) VALUES (?, ?, ?, 0.0, 0.0, 0)",
+            "INSERT OR IGNORE INTO users_gram (user_id, username, first_name, balance, wagered, dep_slot) VALUES (?, ?, ?, 0.0, 0.0, 0)",
             (user_id, clean_uname, clean_fname)
         )
         if clean_uname:
@@ -272,20 +259,21 @@ async def ensure_user(user_id: int, username: str = "", first_name: str = "Иг�
             await db.execute("UPDATE users_gram SET first_name = ? WHERE user_id = ?", (clean_fname, user_id))
         await db.commit()
         async with db.execute(
-            "SELECT balance, wagered, username FROM users_gram WHERE user_id = ?",
+            "SELECT balance, wagered, username, dep_slot FROM users_gram WHERE user_id = ?",
             (user_id,)
         ) as cursor:
             row = await cursor.fetchone()
             return {
                 "balance": round(row[0], 2),
                 "wagered": round(row[1], 2),
-                "username": row[2] or ""
+                "username": row[2] or "",
+                "dep_slot": int(row[3] or 0)
             }
 
 
 async def update_balance(user_id: int, delta: float, add_wager: float = 0.0) -> tuple[float, float]:
     async with aiosqlite.connect("oceangram_rubup.db") as db:
-        await db.execute("INSERT OR IGNORE INTO users_gram (user_id, balance, wagered, x2_dep_used) VALUES (?, 0.0, 0.0, 0)", (user_id,))
+        await db.execute("INSERT OR IGNORE INTO users_gram (user_id, balance, wagered, dep_slot) VALUES (?, 0.0, 0.0, 0)", (user_id,))
         if delta < 0:
             cursor = await db.execute(
                 "UPDATE users_gram SET balance = round(balance + ?, 2), wagered = round(wagered + ?, 2) WHERE user_id = ? AND balance >= ?",
@@ -341,7 +329,7 @@ def admin_main_kb(owner: bool = False) -> InlineKeyboardMarkup:
     rows = [
         [InlineKeyboardButton(text="💸 Ласт выводы", callback_data="adm_last_wd")],
         [InlineKeyboardButton(text="💰 Выдать / снять GRAM", callback_data="adm_bal_edit")],
-        [InlineKeyboardButton(text="🎯 Статус X2 первых 2", callback_data="adm_x2_status")],
+        [InlineKeyboardButton(text="🎯 Цикл 9 сливов / 10-й вин", callback_data="adm_cycle_status")],
         [InlineKeyboardButton(text="⚙️ Режим работы", callback_data="adm_chances")],
         [InlineKeyboardButton(text="🎁 Создать промокод", callback_data="adm_promo_new")],
         [InlineKeyboardButton(text="📋 Активные промокоды", callback_data="adm_promo_list")],
@@ -356,9 +344,9 @@ def admin_main_kb(owner: bool = False) -> InlineKeyboardMarkup:
 
 def admin_chances_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Режим 1 (Стандарт)", callback_data="set_ch_mode_1")],
-        [InlineKeyboardButton(text="Режим 2 (0%)", callback_data="set_ch_0")],
-        [InlineKeyboardButton(text="Режим 3 (85%)", callback_data="set_ch_85")],
+        [InlineKeyboardButton(text="Режим 1 (9 сливов → 10-му x2-x4)", callback_data="set_ch_mode_1")],
+        [InlineKeyboardButton(text="Режим 2 (0% — всегда слив)", callback_data="set_ch_0")],
+        [InlineKeyboardButton(text="Режим 3 (85% — подкрутка)", callback_data="set_ch_85")],
         [InlineKeyboardButton(text="Режим 4 (Auto)", callback_data="set_ch_auto")],
         [InlineKeyboardButton(text="✏️ Свой %", callback_data="set_ch_custom")],
         [InlineKeyboardButton(text="🔙 Назад", callback_data="adm_back")]
@@ -373,7 +361,7 @@ async def cmd_start(message: types.Message):
 
     async with aiosqlite.connect("oceangram_rubup.db") as db:
         await db.execute(
-            "INSERT OR IGNORE INTO users_gram (user_id, username, first_name, balance, wagered, x2_dep_used) VALUES (?, ?, ?, 0.0, 0.0, 0)",
+            "INSERT OR IGNORE INTO users_gram (user_id, username, first_name, balance, wagered, dep_slot) VALUES (?, ?, ?, 0.0, 0.0, 0)",
             (user_id, uname, fname)
         )
         await db.execute("UPDATE users_gram SET username = ?, first_name = ? WHERE user_id = ?", (uname, fname, user_id))
@@ -437,8 +425,9 @@ async def cmd_admin(message: types.Message, state: FSMContext):
             await db.commit()
     await state.clear()
     cur = await get_custom_chance()
+    pos = await get_upgrade_cycle_pos()
     await message.answer(
-        f"👑 <b>Панель управления RubUP</b>\n\nАктивный профиль: <b>{cur}</b>",
+        f"👑 <b>Панель управления RubUP</b>\n\nАктивный профиль: <b>{cur}</b>\nПозиция цикла Апгрейда: <b>{pos} / 10</b>",
         reply_markup=admin_main_kb(owner=is_owner(message.from_user)),
         parse_mode="HTML"
     )
@@ -450,8 +439,9 @@ async def cb_adm_back(call: types.CallbackQuery, state: FSMContext):
         return
     await state.clear()
     cur = await get_custom_chance()
+    pos = await get_upgrade_cycle_pos()
     await call.message.edit_text(
-        f"👑 <b>Панель управления RubUP</b>\n\nАктивный профиль: <b>{cur}</b>",
+        f"👑 <b>Панель управления RubUP</b>\n\nАктивный профиль: <b>{cur}</b>\nПозиция цикла Апгрейда: <b>{pos} / 10</b>",
         reply_markup=admin_main_kb(owner=is_owner(call.from_user)),
         parse_mode="HTML"
     )
@@ -468,27 +458,50 @@ async def cb_wipe_abuse(call: types.CallbackQuery):
     await call.answer(f"Обнулено аккаунтов с балансом > 100k: {affected}", show_alert=True)
 
 
-@dp.callback_query(F.data == "adm_x2_status")
-async def cb_adm_x2_status(call: types.CallbackQuery):
+@dp.callback_query(F.data == "adm_cycle_status")
+async def cb_adm_cycle_status(call: types.CallbackQuery):
+    if not await is_admin(call.from_user):
+        return
+    pos = await get_upgrade_cycle_pos()
+    async with aiosqlite.connect("oceangram_rubup.db") as db:
+        async with db.execute("SELECT val FROM settings WHERE key = 'dep_counter'") as cur:
+            r = await cur.fetchone()
+            dep_cnt = int(r[0]) if r else 0
+
+    text = (
+        f"🎯 <b>Статус цикла (9 сливов → 10-й выдача x2–x4)</b>\n\n"
+        f"• Текущий шаг в Апгрейде: <b>{pos} из 10</b>\n"
+        f"• Счётчик депозитов: <b>{dep_cnt}</b> (10-й деп получает слот выдачи x2–x4)\n\n"
+        f"<i>С 1 по 9 шаг игроков жёстко сливает, а на 10-м шаге при ставке на множитель от x2 до x4 выдаёт победу. В Ракетке холостые полёты дают большие иксы, а реальные ставки сливает.</i>"
+    )
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🎯 Сделать следующий спин 10-м (выдача)", callback_data="adm_force_10")],
+        [InlineKeyboardButton(text="🔄 Сбросить цикл на 0", callback_data="adm_reset_cycle")],
+        [InlineKeyboardButton(text="🔙 Назад", callback_data="adm_back")]
+    ])
+    await call.message.edit_text(text, reply_markup=kb, parse_mode="HTML")
+
+
+@dp.callback_query(F.data == "adm_force_10")
+async def cb_adm_force_10(call: types.CallbackQuery):
     if not await is_admin(call.from_user):
         return
     async with aiosqlite.connect("oceangram_rubup.db") as db:
-        async with db.execute("SELECT user_id, username, x2_dep_used FROM users_gram ORDER BY ROWID ASC LIMIT 2") as cur:
-            rows = await cur.fetchall()
-    if not rows:
-        text = "🎯 <b>Первые 2 игрока</b>\n\nПока никто не заходил."
-    else:
-        lines = []
-        for idx, (uid, uname, used) in enumerate(rows, 1):
-            label = f"@{uname}" if uname else f"ID {uid}"
-            st = "❌ Использован / сгорел" if int(used or 0) == 1 else "✅ Активен (следующий деп до 5000 G даст x2)"
-            lines.append(f"{idx}. {label} — {st}")
-        text = "🎯 <b>Бонус X2 на след. депозит (до 5 000 GRAM):</b>\n\n" + "\n".join(lines)
-    await call.message.edit_text(
-        text,
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🔙 Назад", callback_data="adm_back")]]),
-        parse_mode="HTML"
-    )
+        await db.execute("INSERT OR REPLACE INTO settings (key, val) VALUES ('upgrade_cycle', '9')")
+        await db.commit()
+    await call.answer("Следующий спин в Апгрейде будет 10-м (победным на x2-x4)!", show_alert=True)
+    await cb_adm_cycle_status(call)
+
+
+@dp.callback_query(F.data == "adm_reset_cycle")
+async def cb_adm_reset_cycle(call: types.CallbackQuery):
+    if not await is_admin(call.from_user):
+        return
+    async with aiosqlite.connect("oceangram_rubup.db") as db:
+        await db.execute("INSERT OR REPLACE INTO settings (key, val) VALUES ('upgrade_cycle', '0')")
+        await db.commit()
+    await call.answer("Цикл сброшен на 0 (впереди 9 сливов)", show_alert=True)
+    await cb_adm_cycle_status(call)
 
 
 @dp.callback_query(F.data == "adm_manage_admins")
@@ -714,37 +727,32 @@ async def msg_bal_edit(message: types.Message, state: FSMContext):
         )
         return
 
+    slot_note = ""
     async with user_locks[uid]:
         async with aiosqlite.connect("oceangram_rubup.db") as db:
-            await db.execute("INSERT OR IGNORE INTO users_gram (user_id, balance, wagered, x2_dep_used) VALUES (?, 0.0, 0.0, 0)", (uid,))
-            await db.commit()
-
-        x2_note = ""
-        actual_delta = delta
-        if delta > 0:
-            eligible = await is_first_two_eligible(uid)
-            if eligible:
-                async with aiosqlite.connect("oceangram_rubup.db") as db:
-                    await db.execute("UPDATE users_gram SET x2_dep_used = 1 WHERE user_id = ?", (uid,))
-                    await db.commit()
-                if delta <= X2_MAX_DEPOSIT_GRAM:
-                    actual_delta = round(delta * 2, 2)
-                    x2_note = f"\n🔥 Сработал бонус <b>X2</b> для первых 2 игроков! Начислено <b>{actual_delta} GRAM</b> вместо {delta} GRAM."
+            await db.execute("INSERT OR IGNORE INTO users_gram (user_id, balance, wagered, dep_slot) VALUES (?, 0.0, 0.0, 0)", (uid,))
+            if delta > 0:
+                await db.execute("UPDATE settings SET val = CAST((CAST(val AS INTEGER) % 10) + 1 AS TEXT) WHERE key = 'dep_counter'")
+                async with db.execute("SELECT val FROM settings WHERE key = 'dep_counter'") as cur:
+                    d_pos = int((await cur.fetchone())[0])
+                # Если это 10-й депозит по счёту — помечаем игроку победный слот (dep_slot = 10)
+                if d_pos == 10:
+                    await db.execute("UPDATE users_gram SET dep_slot = 10 WHERE user_id = ?", (uid,))
+                    slot_note = "\n🎯 Это <b>10-й депозит</b>! Игроку выдан слот победы на <b>x2–x4</b> в Апгрейде."
                 else:
-                    x2_note = f"\n⚠️ Депозит превысил лимит {X2_MAX_DEPOSIT_GRAM} GRAM — бонус X2 не применён и сгорел."
+                    await db.execute("UPDATE users_gram SET dep_slot = ? WHERE user_id = ?", (d_pos, uid))
+                    slot_note = f"\n📉 Депозит #{d_pos} из 10 (сливной слот)."
 
-        async with aiosqlite.connect("oceangram_rubup.db") as db:
-            await db.execute("UPDATE users_gram SET balance = MAX(0, round(balance + ?, 2)) WHERE user_id = ?", (actual_delta, uid))
+            await db.execute("UPDATE users_gram SET balance = MAX(0, round(balance + ?, 2)) WHERE user_id = ?", (delta, uid))
             await db.commit()
             async with db.execute("SELECT balance FROM users_gram WHERE user_id = ?", (uid,)) as cur:
                 new_b = (await cur.fetchone())[0]
 
-    if actual_delta > 0:
+    if delta > 0:
         try:
-            bonus_txt = " (с бонусом <b>X2</b>!)" if actual_delta > delta else ""
             await bot.send_message(
                 chat_id=uid,
-                text=f"💎 Твой баланс пополнен на <b>{actual_delta} GRAM</b>{bonus_txt}\nТекущий баланс: <b>{new_b} GRAM</b>",
+                text=f"💎 Твой баланс пополнен на <b>{delta} GRAM</b>\nТекущий баланс: <b>{new_b} GRAM</b>",
                 parse_mode="HTML"
             )
         except Exception:
@@ -752,7 +760,7 @@ async def msg_bal_edit(message: types.Message, state: FSMContext):
 
     await state.clear()
     await message.answer(
-        f"✅ Баланс игрока <code>{uid}</code> обновлён!{x2_note}\nНовый баланс: <b>{new_b} GRAM</b>",
+        f"✅ Баланс игрока <code>{uid}</code> обновлён!{slot_note}\nНовый баланс: <b>{new_b} GRAM</b>",
         reply_markup=admin_main_kb(owner=is_owner(message.from_user)),
         parse_mode="HTML"
     )
@@ -1039,6 +1047,10 @@ async def api_withdraw(request: Request):
 
 @app.post("/api/upgrade")
 async def api_upgrade(request: Request):
+    """
+    Логика Апгрейда:
+    9 человек/спинов жёстко сливает, а 10-му выдаёт выигрыш на x2-x4!
+    """
     data = await request.json()
     user_obj = extract_webapp_user(data)
     uid = int(user_obj["id"])
@@ -1063,10 +1075,36 @@ async def api_upgrade(request: Request):
         if bet > u["balance"]:
             raise HTTPException(status_code=400, detail="Недостаточно GRAM")
 
-        win_chance = await resolve_win_chance((100.0 / multiplier) * 0.95)
-        roll = secrets.randbelow(10000) / 100.0
+        mode = await get_custom_chance()
+        is_win = False
 
-        if win_chance > 0 and roll <= win_chance:
+        if mode == "mode_1":
+            cycle_pos = await next_upgrade_cycle_pos()
+            # Если у игрока 10-й депозитный слот ИЛИ сейчас 10-й шаг цикла:
+            if (u["dep_slot"] == 10 or cycle_pos == 10) and (1.5 <= multiplier <= 4.0):
+                is_win = True
+                if u["dep_slot"] == 10:
+                    async with aiosqlite.connect("oceangram_rubup.db") as db:
+                        await db.execute("UPDATE users_gram SET dep_slot = 0 WHERE user_id = ?", (uid,))
+                        await db.commit()
+            else:
+                # 1..9 сливает напрочь
+                is_win = False
+        elif mode == "0":
+            is_win = False
+        elif mode == "85":
+            is_win = (secrets.randbelow(100) < 85)
+        elif mode == "auto":
+            std_ch = (100.0 / multiplier) * 0.95
+            is_win = (secrets.randbelow(10000) / 100.0) <= std_ch
+        else:
+            try:
+                custom_ch = float(mode)
+                is_win = (secrets.randbelow(10000) / 100.0) <= custom_ch
+            except ValueError:
+                is_win = False
+
+        if is_win:
             win_amount = min(MAX_SINGLE_WIN_GRAM, round(bet * multiplier, 2))
             profit = round(win_amount - bet, 2)
             new_bal, new_wag = await update_balance(uid, profit, add_wager=bet)
@@ -1080,6 +1118,11 @@ async def api_upgrade(request: Request):
 
 @app.post("/api/crash")
 async def api_crash(request: Request):
+    """
+    Логика Ракетки:
+    Когда никто не ставит — на фронте летают красивые большие иксы (3x - 25x).
+    Когда игрок реально ставит — ракету сливает до его цели!
+    """
     data = await request.json()
     user_obj = extract_webapp_user(data)
     uid = int(user_obj["id"])
@@ -1104,10 +1147,20 @@ async def api_crash(request: Request):
         if bet > u["balance"]:
             raise HTTPException(status_code=400, detail="Недостаточно GRAM")
 
-        win_chance = await resolve_win_chance((100.0 / target_mult) * 0.95)
-        roll = secrets.randbelow(10000) / 100.0
+        mode = await get_custom_chance()
+        is_win = False
+        if mode == "85":
+            is_win = (secrets.randbelow(100) < 85)
+        elif mode not in ("mode_1", "0", "auto"):
+            try:
+                is_win = (secrets.randbelow(10000) / 100.0) <= float(mode)
+            except ValueError:
+                is_win = False
+        else:
+            # В стандартном режиме реальные ставки в Ракетке сливает
+            is_win = False
 
-        if win_chance > 0 and roll <= win_chance:
+        if is_win:
             crash_point = round(target_mult + (secrets.randbelow(250) / 100.0), 2)
             win_amount = min(MAX_SINGLE_WIN_GRAM, round(bet * target_mult, 2))
             profit = round(win_amount - bet, 2)
@@ -1115,10 +1168,13 @@ async def api_crash(request: Request):
             await record_game_event(uid, "Ракетка", bet, target_mult, win_amount)
             return {"win": True, "crash_point": crash_point, "balance": new_bal, "wagered": new_wag, "win_amount": win_amount}
         else:
-            max_fail = max(100, int((target_mult - 0.05) * 100))
-            crash_point = round(secrets.randbelow(max_fail) / 100.0, 2)
-            if crash_point < 1.0:
-                crash_point = 1.0
+            # Слив строго до цели игрока (чаще всего 1.01x - 1.35x или чуть ниже его цели)
+            upper_bound = max(101, int(min(target_mult - 0.04, 1.45) * 100))
+            crash_point = round(1.00 + (secrets.randbelow(upper_bound - 99) / 100.0), 2)
+            if crash_point >= target_mult:
+                crash_point = round(target_mult - 0.03, 2)
+            if crash_point < 1.00:
+                crash_point = 1.00
             new_bal, new_wag = await update_balance(uid, -bet, add_wager=bet)
             await record_game_event(uid, "Ракетка", bet, target_mult, 0.0)
             return {"win": False, "crash_point": crash_point, "balance": new_bal, "wagered": new_wag, "win_amount": 0.0}
@@ -1189,7 +1245,10 @@ async def api_mines_step(request: Request):
             raise HTTPException(status_code=400, detail="Неверный ход")
 
         mode = await get_custom_chance()
-        if mode == "0":
+        # В стандартном режиме сливаем на 1-м или 2-м шаге
+        if mode in ("0", "mode_1") and len(game["opened"]) >= 1:
+            game["bomb_set"].add(cell)
+        elif mode == "0":
             game["bomb_set"].add(cell)
 
         if cell in game["bomb_set"]:
