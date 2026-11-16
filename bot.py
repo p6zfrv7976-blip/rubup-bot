@@ -34,6 +34,9 @@ DB_PATH = os.path.join(DB_DIR, "oceangram_rubup.db")
 OCEANGRAM_API = "https://oceanment.2-26-197-16.sslip.io"
 WEBAPP_URL = "https://rubup-borohezh.mia0.amvera.tech"
 OWNER_USERNAME = "rubupgift"
+REQUIRED_CHANNEL = "@zelenskye"
+REQUIRED_CHANNEL_URL = "https://t.me/zelenskye"
+
 STARS_PER_GRAM = 100.0
 X2_MAX_DEPOSIT_GRAM = 5000.0
 MAX_SINGLE_WIN_GRAM = 25000.0
@@ -75,6 +78,20 @@ def check_rate_limit(key: str, max_calls: int = 60, window: float = 10.0):
         raise HTTPException(status_code=429, detail="Слишком много запросов. Подожди секунду.")
     history.append(now)
     ip_requests[key] = history
+
+
+async def check_channel_sub(user_id: int) -> bool:
+    try:
+        member = await bot.get_chat_member(chat_id=REQUIRED_CHANNEL, user_id=user_id)
+        status = getattr(member, "status", "")
+        if status in ("member", "administrator", "creator", "restricted"):
+            return True
+        if status in ("left", "kicked"):
+            return False
+        return True
+    except Exception:
+        # Если бот не добавлен в канал или канал недоступен — не ломаем вход
+        return True
 
 
 class AdminStates(StatesGroup):
@@ -227,7 +244,7 @@ async def record_game_event(user_id: int, game: str, bet: float, mult: float, wi
             "INSERT INTO game_history (user_id, game, bet, mult, win, created_at) VALUES (?, ?, ?, ?, ?, ?)",
             (user_id, game, round(bet, 2), round(mult, 2), round(win, 2), now)
         )
-        await db.execute("DELETE FROM game_history WHERE id NOT IN (SELECT id FROM game_history ORDER BY id DESC LIMIT 300)")
+        await db.execute("DELETE FROM game_history WHERE id NOT IN (SELECT id FROM game_history ORDER BY id DESC LIMIT 1000)")
         await db.commit()
 
 
@@ -357,7 +374,7 @@ def admin_main_kb(owner: bool = False) -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="📋 Активные промокоды", callback_data="adm_promo_list")],
         [InlineKeyboardButton(text="📢 Рассылка", callback_data="adm_broadcast")],
         [InlineKeyboardButton(text="📊 Статистика", callback_data="adm_stats")],
-        [InlineKeyboardButton(text="🎲 История игр", callback_data="adm_game_history")],
+        [InlineKeyboardButton(text="🎲 История игр", callback_data="adm_game_history_1")],
         [InlineKeyboardButton(text="🧹 Сбросить балансы > 100k G", callback_data="adm_wipe_abuse")],
     ]
     if owner:
@@ -374,6 +391,35 @@ def admin_chances_kb() -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="✏️ Свой %", callback_data="set_ch_custom")],
         [InlineKeyboardButton(text="🔙 Назад", callback_data="adm_back")]
     ])
+
+
+def sub_required_kb() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=f"📢 Подписаться на {REQUIRED_CHANNEL}", url=REQUIRED_CHANNEL_URL)],
+        [InlineKeyboardButton(text="✅ Проверить подписку", callback_data="check_sub_btn")]
+    ])
+
+
+async def send_welcome_with_app(chat_id: int, user_id: int):
+    sig = make_uid_sig(user_id)
+    personal_url = f"{WEBAPP_URL}?uid={user_id}&sig={sig}"
+    try:
+        await bot.set_chat_menu_button(
+            chat_id=chat_id,
+            menu_button=MenuButtonWebApp(text="RubUP", web_app=WebAppInfo(url=personal_url))
+        )
+    except Exception:
+        pass
+
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🚀 Открыть RubUP", web_app=WebAppInfo(url=personal_url))]
+    ])
+    await bot.send_message(
+        chat_id=chat_id,
+        text="✅ Подписка подтверждена!\nДобро пожаловать в <b>RubUP</b> — жми кнопку <b>RubUP</b> внизу слева или кнопку ниже:",
+        reply_markup=kb,
+        parse_mode="HTML"
+    )
 
 
 @dp.message(CommandStart())
@@ -395,24 +441,29 @@ async def cmd_start(message: types.Message):
             await db.execute("INSERT OR REPLACE INTO settings (key, val) VALUES ('admin_chat_id', ?)", (str(message.chat.id),))
             await db.commit()
 
-    sig = make_uid_sig(user_id)
-    personal_url = f"{WEBAPP_URL}?uid={user_id}&sig={sig}"
-    try:
-        await bot.set_chat_menu_button(
-            chat_id=message.chat.id,
-            menu_button=MenuButtonWebApp(text="RubUP", web_app=WebAppInfo(url=personal_url))
+    if not await check_channel_sub(user_id):
+        await message.answer(
+            f"🔒 <b>Доступ к RubUP закрыт</b>\n\nДля входа в игру подпишись на наш канал <b>{REQUIRED_CHANNEL}</b> и нажми кнопку проверки:",
+            reply_markup=sub_required_kb(),
+            parse_mode="HTML"
         )
+        return
+
+    await send_welcome_with_app(message.chat.id, user_id)
+
+
+@dp.callback_query(F.data == "check_sub_btn")
+async def cb_check_sub(call: types.CallbackQuery):
+    user_id = call.from_user.id
+    if not await check_channel_sub(user_id):
+        await call.answer(f"❌ Ты ещё не подписался на {REQUIRED_CHANNEL}!", show_alert=True)
+        return
+    await call.answer("✅ Подписка подтверждена!")
+    try:
+        await call.message.delete()
     except Exception:
         pass
-
-    kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🚀 Открыть RubUP", web_app=WebAppInfo(url=personal_url))]
-    ])
-    await message.answer(
-        "Добро пожаловать в <b>RubUP</b>!\nЖми кнопку <b>RubUP</b> внизу слева (меню бота) — так приложение открывается мгновенно без лишних окон:",
-        reply_markup=kb,
-        parse_mode="HTML"
-    )
+    await send_welcome_with_app(call.message.chat.id, user_id)
 
 
 async def redeem_promo_code(user_id: int, raw_code: str) -> tuple[bool, str, float, float]:
@@ -946,17 +997,30 @@ async def cb_stats(call: types.CallbackQuery):
     )
 
 
-@dp.callback_query(F.data == "adm_game_history")
+# Постраничная история игр (по 10 записей на страницу)
+@dp.callback_query(F.data.startswith("adm_game_history_"))
 async def cb_adm_game_history(call: types.CallbackQuery):
     if not await is_admin(call.from_user):
         return
+    try:
+        page = max(1, int(call.data.replace("adm_game_history_", "")))
+    except ValueError:
+        page = 1
+
+    per_page = 10
     async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute("SELECT COUNT(*) FROM game_history") as cur:
+            total_count = (await cur.fetchone())[0]
+        total_pages = max(1, math.ceil(total_count / per_page))
+        page = min(page, total_pages)
+        offset = (page - 1) * per_page
+
         async with db.execute("""
             SELECT g.id, g.user_id, u.username, g.game, g.bet, g.mult, g.win
             FROM game_history g
             LEFT JOIN users_gram u ON u.user_id = g.user_id
-            ORDER BY g.id DESC LIMIT 18
-        """) as cursor:
+            ORDER BY g.id DESC LIMIT ? OFFSET ?
+        """, (per_page, offset)) as cursor:
             rows = await cursor.fetchall()
 
     if not rows:
@@ -967,16 +1031,21 @@ async def cb_adm_game_history(call: types.CallbackQuery):
             u_str = f"@{uname}" if uname else f"ID:{uid}"
             res_str = f"✅ +{win} G" if win > 0 else f"❌ -{bet} G"
             lines.append(f"<b>#{gid}</b> | {u_str} | {game} (×{mult})\n└ Ставка: <b>{bet} G</b> → {res_str}")
-        text = "🎲 <b>Последние 18 игр:</b>\n\n" + "\n\n".join(lines)
+        text = f"🎲 <b>История игр (Стр. {page} из {total_pages}, всего {total_count}):</b>\n\n" + "\n\n".join(lines)
 
-    await call.message.edit_text(
-        text,
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="🔄 Обновить", callback_data="adm_game_history")],
-            [InlineKeyboardButton(text="🔙 Назад", callback_data="adm_back")]
-        ]),
-        parse_mode="HTML"
-    )
+    nav_row = []
+    if page > 1:
+        nav_row.append(InlineKeyboardButton(text="⬅️ Назад", callback_data=f"adm_game_history_{page - 1}"))
+    nav_row.append(InlineKeyboardButton(text=f"📄 {page}/{total_pages}", callback_data=f"adm_game_history_{page}"))
+    if page < total_pages:
+        nav_row.append(InlineKeyboardButton(text="Вперёд ➡️", callback_data=f"adm_game_history_{page + 1}"))
+
+    kb_rows = [
+        nav_row,
+        [InlineKeyboardButton(text="🔄 Обновить", callback_data=f"adm_game_history_{page}")],
+        [InlineKeyboardButton(text="🔙 В меню админки", callback_data="adm_back")]
+    ]
+    await call.message.edit_text(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=kb_rows), parse_mode="HTML")
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -993,6 +1062,13 @@ async def api_user(request: Request):
     data = await request.json()
     user_obj = extract_webapp_user(data)
     uid = int(user_obj["id"])
+
+    if not await check_channel_sub(uid):
+        raise HTTPException(
+            status_code=403,
+            detail=f"Подпишись на канал {REQUIRED_CHANNEL}, чтобы играть в RubUP!"
+        )
+
     u = await ensure_user(uid, user_obj.get("username", ""), user_obj.get("first_name", "Игрок"))
 
     async with aiosqlite.connect(DB_PATH) as db:
@@ -1017,6 +1093,8 @@ async def api_promo(request: Request):
     data = await request.json()
     user_obj = extract_webapp_user(data)
     uid = int(user_obj["id"])
+    if not await check_channel_sub(uid):
+        raise HTTPException(status_code=403, detail=f"Подпишись на {REQUIRED_CHANNEL}!")
     ok, msg, amount, new_bal = await redeem_promo_code(uid, str(data.get("code", "")))
     if not ok:
         raise HTTPException(status_code=400, detail=msg)
@@ -1028,6 +1106,9 @@ async def api_withdraw(request: Request):
     data = await request.json()
     user_obj = extract_webapp_user(data)
     uid = int(user_obj["id"])
+    if not await check_channel_sub(uid):
+        raise HTTPException(status_code=403, detail=f"Подпишись на {REQUIRED_CHANNEL}!")
+
     u_info = await ensure_user(uid, user_obj.get("username", ""), user_obj.get("first_name", "Игрок"))
     username = user_obj.get("username") or u_info["username"] or "без_юза"
 
@@ -1087,6 +1168,8 @@ async def api_upgrade(request: Request):
     data = await request.json()
     user_obj = extract_webapp_user(data)
     uid = int(user_obj["id"])
+    if not await check_channel_sub(uid):
+        raise HTTPException(status_code=403, detail=f"Подпишись на {REQUIRED_CHANNEL}!")
     fname = user_obj.get("first_name", "Игрок")
 
     now = time.monotonic()
@@ -1128,6 +1211,8 @@ async def api_crash(request: Request):
     data = await request.json()
     user_obj = extract_webapp_user(data)
     uid = int(user_obj["id"])
+    if not await check_channel_sub(uid):
+        raise HTTPException(status_code=403, detail=f"Подпишись на {REQUIRED_CHANNEL}!")
     fname = user_obj.get("first_name", "Игрок")
 
     now = time.monotonic()
@@ -1183,6 +1268,8 @@ async def api_mines_start(request: Request):
     data = await request.json()
     user_obj = extract_webapp_user(data)
     uid = int(user_obj["id"])
+    if not await check_channel_sub(uid):
+        raise HTTPException(status_code=403, detail=f"Подпишись на {REQUIRED_CHANNEL}!")
     fname = user_obj.get("first_name", "Игрок")
 
     now = time.monotonic()
