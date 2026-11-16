@@ -12,14 +12,22 @@
 
   /* Header */
   .topbar { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; position: sticky; top: 0; background: rgba(13, 12, 24, 0.88); backdrop-filter: blur(18px); z-index: 35; border-bottom: 1px solid rgba(255,255,255,0.06); }
-  .brand { font-size: 23px; font-weight: 900; letter-spacing: -0.6px; display: flex; align-items: center; cursor: pointer; }
-  .brand span { background: linear-gradient(135deg, #fde047, #f59e0b); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-style: italic; margin-left: 2px; }
+  .brand { font-size: 24px; font-weight: 900; letter-spacing: -0.6px; display: flex; align-items: center; cursor: pointer; color: #ffffff; }
+  .brand span { color: #facc15; font-style: normal; margin-left: 1px; }
   .top-controls { display: flex; align-items: center; gap: 8px; }
-  .bal-pill { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); padding: 6px 12px; border-radius: 20px; display: flex; align-items: center; gap: 6px; font-weight: 800; font-size: 14px; cursor: pointer; }
-  .gram-badge { width: 20px; height: 20px; border-radius: 50%; background: linear-gradient(135deg, #38bdf8, #6366f1); display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 900; color: #fff; box-shadow: 0 0 10px rgba(56, 189, 248, 0.4); }
+  .bal-pill { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); padding: 6px 12px; border-radius: 20px; display: flex; align-items: center; gap: 6px; font-weight: 800; font-size: 14px; cursor: pointer; transition: transform 0.12s; }
+  .bal-pill:active { transform: scale(0.95); }
+  .ton-badge { width: 20px; height: 20px; border-radius: 50%; background: linear-gradient(135deg, #0098ea, #0077cc); display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 0 10px rgba(0, 152, 234, 0.45); }
+  .ton-inline { display: inline-flex; align-items: center; gap: 4px; vertical-align: middle; }
   .btn-dep-top { background: linear-gradient(135deg, #8b5cf6, #6366f1); border: none; color: #fff; font-weight: 700; font-size: 13px; padding: 8px 15px; border-radius: 20px; cursor: pointer; box-shadow: 0 4px 16px rgba(139, 92, 246, 0.4); }
   .avatar-btn { width: 34px; height: 34px; border-radius: 50%; background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12); display: flex; align-items: center; justify-content: center; cursor: pointer; position: relative; color: #e2e8f0; }
   .avatar-dot { width: 8px; height: 8px; background: #22c55e; border-radius: 50%; position: absolute; bottom: 0; right: 0; border: 1.5px solid #0d0c18; }
+
+  /* Floating TON conversion tooltip */
+  .ton-popover { display: none; position: fixed; top: 62px; right: 16px; background: #1d1b36; border: 1px solid rgba(0, 152, 234, 0.45); border-radius: 16px; padding: 12px 14px; z-index: 60; box-shadow: 0 12px 30px rgba(0,0,0,0.6); min-width: 210px; animation: slideUp 0.16s ease; }
+  .ton-popover-title { font-size: 11px; color: #94a3b8; font-weight: 700; margin-bottom: 4px; }
+  .ton-popover-val { font-size: 18px; font-weight: 900; color: #38bdf8; display: flex; align-items: center; gap: 6px; }
+  .ton-popover-sub { font-size: 11px; color: #cbd5e1; margin-top: 4px; }
 
   .container { padding: 0 16px; max-width: 460px; margin: 0 auto; }
   .screen { display: none; animation: slideUp 0.2s ease; }
@@ -34,7 +42,7 @@
   .game-card.wide { grid-column: 1 / -1; height: 148px; }
   .gc-upgrade { background: linear-gradient(155deg, #4c1d95 0%, #1e1b4b 100%); }
   .gc-crash { background: linear-gradient(155deg, #0369a1 0%, #172554 100%); }
-  .gc-mines { background: linear-gradient(155deg, #701a75 0%, #2e1065 100%); }
+  .gc-mines { background: linear-gradient(155deg, #991b1b 0%, #450a0a 100%); }
   .gc-art { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; filter: drop-shadow(0 12px 20px rgba(0,0,0,0.5)); }
   .gc-art svg { width: 84px; height: 84px; }
   .gc-name { font-size: 20px; font-weight: 800; z-index: 2; text-shadow: 0 2px 10px rgba(0,0,0,0.6); }
@@ -59,18 +67,17 @@
   .mult-bar { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 10px; }
   .m-chip { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.09); color: #cbd5e1; font-weight: 700; font-size: 13px; padding: 10px 0; border-radius: 12px; cursor: pointer; text-align: center; }
   .m-chip.active { background: linear-gradient(135deg, #8b5cf6, #6366f1); border-color: transparent; color: #fff; }
-  .custom-inline { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 14px; padding: 9px 14px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-  .custom-inline span { font-size: 12px; color: #94a3b8; font-weight: 600; }
-  .custom-inline input { background: transparent; border: none; color: #fff; font-size: 16px; font-weight: 800; width: 110px; text-align: right; outline: none; }
+  .custom-inline { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 14px; padding: 11px 14px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .custom-inline span { font-size: 13px; color: #94a3b8; font-weight: 600; }
+  .custom-inline input { background: transparent; border: none; color: #fff; font-size: 17px; font-weight: 800; width: 120px; text-align: right; outline: none; }
 
-  .bet-box { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 18px; padding: 12px 14px; margin-bottom: 12px; }
-  .bet-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-  .bet-inp { background: transparent; border: none; color: #fff; font-size: 19px; font-weight: 900; width: 130px; text-align: right; outline: none; }
-  .pct-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
-  .pct-btn { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08); color: #cbd5e1; font-size: 11px; font-weight: 700; padding: 7px 0; border-radius: 10px; cursor: pointer; }
+  .bet-box { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 12px 14px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+  .bet-box span { font-size: 13px; color: #94a3b8; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+  .bet-inp { background: transparent; border: none; color: #fff; font-size: 19px; font-weight: 900; width: 140px; text-align: right; outline: none; }
+
   .btn-action-main { width: 100%; background: linear-gradient(135deg, #8b5cf6, #6366f1); border: none; border-radius: 16px; padding: 14px; color: #fff; cursor: pointer; text-align: center; box-shadow: 0 8px 24px rgba(139, 92, 246, 0.35); font-weight: 800; font-size: 16px; }
   .btn-action-main:disabled { opacity: 0.45; cursor: not-allowed; }
-  .btn-action-sub { display: block; font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.8); margin-top: 2px; }
+  .btn-action-sub { display: block; font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.85); margin-top: 2px; }
 
   /* Crash Rocket */
   .crash-stage { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.09); border-radius: 22px; height: 205px; position: relative; overflow: hidden; margin-bottom: 12px; }
@@ -79,7 +86,7 @@
   .crash-mult-num { font-size: 44px; font-weight: 900; text-shadow: 0 4px 20px rgba(0,0,0,0.6); }
   .crash-state-lbl { font-size: 12px; font-weight: 700; color: #94a3b8; margin-top: 2px; }
 
-  /* Mines 5x5 */
+  /* Bombs 5x5 */
   .mines-info { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
   .m-stat { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.09); border-radius: 14px; padding: 10px; text-align: center; }
   .m-stat small { display: block; font-size: 11px; color: #94a3b8; }
@@ -94,7 +101,8 @@
   /* Profile */
   .prof-card { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.09); border-radius: 24px; padding: 18px; margin-top: 12px; margin-bottom: 12px; }
   .prof-bal-lbl { text-align: center; font-size: 13px; color: #94a3b8; }
-  .prof-bal-val { text-align: center; font-size: 36px; font-weight: 900; margin: 4px 0 16px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .prof-bal-val { text-align: center; font-size: 36px; font-weight: 900; margin: 4px 0 4px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .prof-ton-sub { text-align: center; font-size: 13px; font-weight: 700; color: #38bdf8; margin-bottom: 14px; display: flex; align-items: center; justify-content: center; gap: 5px; }
   .prof-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px; }
   .btn-p-dep { background: linear-gradient(135deg, #8b5cf6, #6366f1); border: none; color: #fff; font-weight: 700; font-size: 15px; padding: 13px; border-radius: 14px; cursor: pointer; }
   .btn-p-wd { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); color: #fff; font-weight: 700; font-size: 15px; padding: 13px; border-radius: 14px; cursor: pointer; }
@@ -115,7 +123,7 @@
   .hist-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.07); font-size: 12px; }
   .hist-row:last-child { border-bottom: none; }
 
-  /* Bottom Nav (2 tabs) */
+  /* Bottom Nav */
   .bottom-nav { position: fixed; bottom: 12px; left: 16px; right: 16px; max-width: 428px; margin: 0 auto; background: rgba(22, 20, 40, 0.92); backdrop-filter: blur(18px); border: 1px solid rgba(255,255,255,0.1); border-radius: 24px; padding: 6px; display: grid; grid-template-columns: 1fr 1fr; z-index: 40; box-shadow: 0 10px 30px rgba(0,0,0,0.45); }
   .nav-item { text-align: center; padding: 11px 4px; border-radius: 18px; font-size: 13px; font-weight: 700; color: #94a3b8; cursor: pointer; }
   .nav-item.active { background: rgba(255,255,255,0.1); color: #fff; }
@@ -139,13 +147,20 @@
   .btn-tg-link { display: block; width: 100%; background: linear-gradient(135deg, #8b5cf6, #6366f1); color: #fff; text-align: center; text-decoration: none; font-weight: 800; padding: 14px; border-radius: 14px; margin: 10px 0 6px; }
 </style>
 </head>
-<body>
+<body onclick="hideTonPopover(event)">
+
+<!-- Значок TON -->
+<svg style="display:none;">
+  <symbol id="ton-icon" viewBox="0 0 24 24">
+    <path d="M12 2L3 7.2V16.8L12 22L21 16.8V7.2L12 2ZM12 4.3L18.2 7.9L12 11.5L5.8 7.9L12 4.3ZM5 9.7L11 13.2V19.3L5 15.8V9.7ZM13 19.3V13.2L19 9.7V15.8L13 19.3Z" fill="currentColor"/>
+  </symbol>
+</svg>
 
 <div class="topbar">
   <div class="brand" onclick="switchTab('games')">Rub<span>UP</span></div>
   <div class="top-controls">
-    <div class="bal-pill" onclick="switchTab('profile')">
-      <span class="gram-badge">G</span>
+    <div class="bal-pill" id="topBalPill" onclick="toggleTonPopover(event)">
+      <span class="ton-badge"><svg width="13" height="13" style="color:#fff;"><use href="#ton-icon"/></svg></span>
       <span id="topBalance">0.00</span>
     </div>
     <button class="btn-dep-top" onclick="openTopup()">Пополнить</button>
@@ -154,6 +169,16 @@
       <div class="avatar-dot"></div>
     </div>
   </div>
+</div>
+
+<!-- Всплывающий пересчёт в TON -->
+<div class="ton-popover" id="tonPopover" onclick="event.stopPropagation()">
+  <div class="ton-popover-title">Ваш баланс в TON:</div>
+  <div class="ton-popover-val">
+    <span class="ton-badge"><svg width="13" height="13" style="color:#fff;"><use href="#ton-icon"/></svg></span>
+    <span id="popoverTonVal">0.0000 TON</span>
+  </div>
+  <div class="ton-popover-sub" id="popoverSubVal">100 GRAM = 1 TON • 1 GRAM = 100 ⭐️</div>
 </div>
 
 <div class="container">
@@ -175,9 +200,9 @@
       </div>
       <div class="game-card gc-mines wide" onclick="switchTab('mines')">
         <div class="gc-art">
-          <svg viewBox="0 0 64 64"><defs><linearGradient id="g_u2" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#a5f3fc"/><stop offset="100%" stop-color="#818cf8"/></linearGradient></defs><polygon points="34,6 14,36 30,36 26,58 50,26 34,26" fill="url(#g_u2)"/></svg>
+          <svg viewBox="0 0 64 64"><defs><radialGradient id="g_bm" cx="35%" cy="35%" r="65%"><stop offset="0%" stop-color="#64748b"/><stop offset="100%" stop-color="#0f172a"/></radialGradient></defs><circle cx="30" cy="36" r="18" fill="url(#g_bm)"/><rect x="26" y="13" width="8" height="6" rx="2" fill="#475569"/><path d="M30 13C33 7 42 7 45 12" fill="none" stroke="#f59e0b" stroke-width="3" stroke-linecap="round"/><circle cx="46" cy="12" r="4" fill="#ef4444"/><circle cx="24" cy="30" r="4" fill="#fff" opacity="0.25"/></svg>
         </div>
-        <div class="gc-name">Шторм 5×5</div>
+        <div class="gc-name">Бомбы</div>
       </div>
     </div>
   </div>
@@ -218,21 +243,13 @@
     </div>
 
     <div class="bet-box">
-      <div class="bet-top">
-        <span style="font-size:13px; color:#94a3b8;">Своя ставка (GRAM)</span>
-        <input type="number" id="betInput" class="bet-inp" value="1" step="0.1" min="0.05" oninput="recalc()">
-      </div>
-      <div class="pct-bar">
-        <button class="pct-btn" onclick="setBetPct('betInput', 0.25, recalc)">25%</button>
-        <button class="pct-btn" onclick="setBetPct('betInput', 0.50, recalc)">50%</button>
-        <button class="pct-btn" onclick="setBetPct('betInput', 0.75, recalc)">75%</button>
-        <button class="pct-btn" onclick="setBetPct('betInput', 1.00, recalc)">MAX</button>
-      </div>
+      <span><span class="ton-badge" style="width:16px;height:16px;"><svg width="11" height="11" style="color:#fff;"><use href="#ton-icon"/></svg></span> Сумма ставки</span>
+      <input type="number" id="betInput" class="bet-inp" value="1" step="0.1" min="0.05" placeholder="Введи сумму" oninput="recalc()">
     </div>
 
     <button class="btn-action-main" id="playBtn" onclick="playUpgrade()">
       Улучшить
-      <span class="btn-action-sub" id="winPreviewSub">Выигрыш: 2.00 GRAM</span>
+      <span class="btn-action-sub" id="winPreviewSub">Выигрыш: 2.00 GRAM (0.020 TON)</span>
     </button>
     <div id="statusMsg" style="text-align:center; font-weight:800; margin-top:10px; min-height:22px;"></div>
   </div>
@@ -263,20 +280,12 @@
 
     <div class="custom-inline">
       <span>Своя цель кэшаута (x)</span>
-      <input type="number" id="customCrashTarget" value="2.0" step="0.1" min="1.1" max="100" oninput="onCustomCrash(this.value)">
+      <input type="number" id="customCrashTarget" value="2.0" step="0.1" min="1.1" max="20" oninput="onCustomCrash(this.value)">
     </div>
 
     <div class="bet-box">
-      <div class="bet-top">
-        <span style="font-size:13px; color:#94a3b8;">Своя ставка (GRAM)</span>
-        <input type="number" id="crashBetInp" class="bet-inp" value="1" step="0.1" min="0.05">
-      </div>
-      <div class="pct-bar">
-        <button class="pct-btn" onclick="setBetPct('crashBetInp', 0.25)">25%</button>
-        <button class="pct-btn" onclick="setBetPct('crashBetInp', 0.50)">50%</button>
-        <button class="pct-btn" onclick="setBetPct('crashBetInp', 0.75)">75%</button>
-        <button class="pct-btn" onclick="setBetPct('crashBetInp', 1.00)">MAX</button>
-      </div>
+      <span><span class="ton-badge" style="width:16px;height:16px;"><svg width="11" height="11" style="color:#fff;"><use href="#ton-icon"/></svg></span> Сумма ставки</span>
+      <input type="number" id="crashBetInp" class="bet-inp" value="1" step="0.1" min="0.05" placeholder="Введи сумму">
     </div>
 
     <button class="btn-action-main" id="crashBtn" onclick="playCrash()">
@@ -285,11 +294,11 @@
     </button>
   </div>
 
-  <!-- SCREEN 4: MINES (STORM 5x5) -->
+  <!-- SCREEN 4: BOMBS (5x5) -->
   <div class="screen" id="scr-mines">
     <div class="game-top">
       <button class="btn-back" onclick="switchTab('games')">← Назад</button>
-      <div class="game-badge-title">Шторм 5×5</div>
+      <div class="game-badge-title">Бомбы</div>
       <div style="width:64px;"></div>
     </div>
 
@@ -301,23 +310,15 @@
     <div class="mines-grid" id="minesGrid"></div>
 
     <div class="mult-bar" style="grid-template-columns: repeat(4, 1fr);">
-      <button class="m-chip active" onclick="setBombs(3, this)">3 мины</button>
-      <button class="m-chip" onclick="setBombs(5, this)">5 мин</button>
-      <button class="m-chip" onclick="setBombs(10, this)">10 мин</button>
-      <button class="m-chip" onclick="setBombs(15, this)">15 мин</button>
+      <button class="m-chip active" onclick="setBombs(3, this)">3 бомбы</button>
+      <button class="m-chip" onclick="setBombs(5, this)">5 бомб</button>
+      <button class="m-chip" onclick="setBombs(10, this)">10 бомб</button>
+      <button class="m-chip" onclick="setBombs(15, this)">15 бомб</button>
     </div>
 
     <div class="bet-box">
-      <div class="bet-top">
-        <span style="font-size:13px; color:#94a3b8;">Своя ставка (GRAM)</span>
-        <input type="number" id="minesBetInp" class="bet-inp" value="1" step="0.1" min="0.05">
-      </div>
-      <div class="pct-bar">
-        <button class="pct-btn" onclick="setBetPct('minesBetInp', 0.25)">25%</button>
-        <button class="pct-btn" onclick="setBetPct('minesBetInp', 0.50)">50%</button>
-        <button class="pct-btn" onclick="setBetPct('minesBetInp', 0.75)">75%</button>
-        <button class="pct-btn" onclick="setBetPct('minesBetInp', 1.00)">MAX</button>
-      </div>
+      <span><span class="ton-badge" style="width:16px;height:16px;"><svg width="11" height="11" style="color:#fff;"><use href="#ton-icon"/></svg></span> Сумма ставки</span>
+      <input type="number" id="minesBetInp" class="bet-inp" value="1" step="0.1" min="0.05" placeholder="Введи сумму">
     </div>
 
     <button class="btn-action-main" id="minesBtn" onclick="handleMinesBtn()">Начать игру</button>
@@ -327,7 +328,15 @@
   <div class="screen" id="scr-profile">
     <div class="prof-card">
       <div class="prof-bal-lbl">Баланс</div>
-      <div class="prof-bal-val"><span id="profBalance">0.00</span> <span style="font-size:20px; color:#38bdf8;">GRAM</span></div>
+      <div class="prof-bal-val">
+        <span class="ton-badge" style="width:28px;height:28px;"><svg width="18" height="18" style="color:#fff;"><use href="#ton-icon"/></svg></span>
+        <span id="profBalance">0.00</span>
+        <span style="font-size:18px; color:#38bdf8;">GRAM</span>
+      </div>
+      <div class="prof-ton-sub">
+        <svg width="14" height="14" style="color:#38bdf8;"><use href="#ton-icon"/></svg>
+        <span id="profTonEq">≈ 0.0000 TON</span>
+      </div>
       <div class="prof-btns">
         <button class="btn-p-dep" onclick="openTopup()">Пополнить</button>
         <button class="btn-p-wd" onclick="openWithdraw()">Вывести</button>
@@ -337,7 +346,7 @@
         <div class="rank-info">
           <div class="rank-top">
             <div id="rankLabel">Новичок → Iron</div>
-            <span id="rankLeft">еще 500 000 G</span>
+            <span id="rankLeft">еще 500 000</span>
           </div>
           <div class="rank-bar-bg">
             <div class="rank-bar-fill" id="rankFill"></div>
@@ -376,18 +385,18 @@
 <div class="modal" id="topupModal">
   <div class="modal-sheet">
     <div class="m-title">Пополнение баланса</div>
-    <div class="m-sub">Курс: 1 GRAM = 100 звёзд</div>
+    <div class="m-sub">100 GRAM = 1 TON • 1 GRAM = 100 звёзд</div>
     <div class="stars-grid">
-      <button class="star-btn" onclick="selectTopupGram(1)">1 GRAM<small>100 звёзд</small></button>
-      <button class="star-btn" onclick="selectTopupGram(5)">5 GRAM<small>500 звёзд</small></button>
-      <button class="star-btn" onclick="selectTopupGram(10)">10 GRAM<small>1000 звёзд</small></button>
-      <button class="star-btn" onclick="selectTopupGram(25)">25 GRAM<small>2500 звёзд</small></button>
-      <button class="star-btn" onclick="selectTopupGram(40)">40 GRAM<small>4000 звёзд</small></button>
-      <button class="star-btn" onclick="selectTopupGram(100)">100 GRAM<small>10000 звёзд</small></button>
+      <button class="star-btn" onclick="selectTopupGram(1)">1 GRAM<small>0.01 TON / 100 ⭐️</small></button>
+      <button class="star-btn" onclick="selectTopupGram(5)">5 GRAM<small>0.05 TON / 500 ⭐️</small></button>
+      <button class="star-btn" onclick="selectTopupGram(10)">10 GRAM<small>0.10 TON / 1000 ⭐️</small></button>
+      <button class="star-btn" onclick="selectTopupGram(25)">25 GRAM<small>0.25 TON / 2500 ⭐️</small></button>
+      <button class="star-btn" onclick="selectTopupGram(40)">40 GRAM<small>0.40 TON / 4000 ⭐️</small></button>
+      <button class="star-btn" onclick="selectTopupGram(100)">100 GRAM<small>1.00 TON / 10000 ⭐️</small></button>
     </div>
     <input type="number" id="customGramDepInp" class="wd-field" value="40" step="0.1" min="0.1" placeholder="Своя сумма в GRAM" oninput="updateTopupInstruction()">
     <div class="transfer-box">
-      <b id="transferHeadline">Передайте @rubupgift 40 GRAM или 4000 звёзд</b>
+      <b id="transferHeadline">Передайте @rubupgift 40 GRAM (0.40 TON) или 4000 звёзд</b>
       <span>После передачи напишите в личку для моментального зачисления на баланс</span>
     </div>
     <a id="topupTgLink" href="https://t.me/rubupgift" target="_blank" class="btn-tg-link">Перейти к @rubupgift</a>
@@ -399,13 +408,13 @@
 <div class="modal" id="withdrawModal">
   <div class="modal-sheet">
     <div class="m-title">Вывод средств</div>
-    <div class="m-sub">Выбери валюту (1 GRAM = 100 Stars):</div>
+    <div class="m-sub">Выбери валюту (100 GRAM = 1 TON = 10 000 Stars):</div>
     <div class="curr-switch">
       <div class="curr-btn active" id="curr-GRAM" onclick="setWdCurr('GRAM')">Вывод в GRAM</div>
       <div class="curr-btn" id="curr-STARS" onclick="setWdCurr('STARS')">Вывод в Stars</div>
     </div>
     <input type="number" id="wdAmountInp" class="wd-field" placeholder="Своя сумма в GRAM (например, 120)" step="0.1" min="0.1">
-    <input type="text" id="wdTxInp" class="wd-field" placeholder="Номер транзакции / кошелек или @username">
+    <input type="text" id="wdTxInp" class="wd-field" placeholder="Номер транзакции / TON кошелек или @username">
     <button class="btn-action-main" id="btnSubmitWd" onclick="submitWithdraw()">Создать заявку на вывод</button>
     <button class="btn-close" onclick="closeModal('withdrawModal')">Закрыть</button>
   </div>
@@ -426,10 +435,16 @@
   const tg = window.Telegram.WebApp;
   tg.expand();
 
+  // Курс пересчёта: 100 GRAM = 1 TON (то есть 1 GRAM = 0.01 TON)
+  const TON_PER_GRAM = 0.01;
+
   const urlParams = new URLSearchParams(window.location.search);
   const queryUid = urlParams.get('uid');
+  const querySig = urlParams.get('sig');
   if (queryUid) localStorage.setItem('rubup_uid', queryUid);
+  if (querySig) localStorage.setItem('rubup_sig', querySig);
   const savedUid = localStorage.getItem('rubup_uid') || "";
+  const savedSig = localStorage.getItem('rubup_sig') || "";
 
   function notifyUser(msg) {
     try { tg.showAlert(msg); } catch (e) { alert(msg); }
@@ -443,7 +458,8 @@
     return Object.assign({
       initData: tg.initData || "",
       user: unsafeUser,
-      uid: (unsafeUser && unsafeUser.id) ? unsafeUser.id : (localStorage.getItem('rubup_uid') || savedUid)
+      uid: (unsafeUser && unsafeUser.id) ? unsafeUser.id : (localStorage.getItem('rubup_uid') || savedUid),
+      sig: localStorage.getItem('rubup_sig') || savedSig
     }, extra);
   }
 
@@ -465,8 +481,30 @@
   let minesBombs = 3;
   let minesActive = false;
 
+  function toggleTonPopover(e) {
+    e.stopPropagation();
+    haptic('light');
+    const pop = document.getElementById('tonPopover');
+    const isOpen = pop.style.display === 'block';
+    if (isOpen) {
+      pop.style.display = 'none';
+    } else {
+      const tonVal = (currentBalance * TON_PER_GRAM).toFixed(4);
+      const starsVal = Math.round(currentBalance * 100);
+      document.getElementById('popoverTonVal').innerText = `${tonVal} TON`;
+      document.getElementById('popoverSubVal').innerText = `${currentBalance.toFixed(2)} GRAM = ${tonVal} TON (${starsVal} ⭐️)`;
+      pop.style.display = 'block';
+    }
+  }
+
+  function hideTonPopover() {
+    const pop = document.getElementById('tonPopover');
+    if (pop) pop.style.display = 'none';
+  }
+
   function switchTab(tab) {
     haptic('light');
+    hideTonPopover();
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
     document.getElementById('scr-' + tab).classList.add('active');
@@ -480,13 +518,6 @@
     return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
   }
 
-  function setBetPct(inputId, pct, cb) {
-    haptic('light');
-    const val = Math.max(0.05, Math.floor(currentBalance * pct * 100) / 100);
-    document.getElementById(inputId).value = val > 0 ? val : 0.1;
-    if (cb) cb();
-  }
-
   function updateRankUI() {
     const orb = document.getElementById('rankOrb');
     const lbl = document.getElementById('rankLabel');
@@ -498,27 +529,30 @@
       const pct = Math.min(100, Math.max(4, (currentWagered / 500000) * 100));
       orb.className = 'rank-orb';
       lbl.innerText = 'Новичок → Iron';
-      left.innerText = `еще ${formatNum(rem)} G`;
+      left.innerText = `еще ${formatNum(rem)}`;
       fill.style.width = pct + '%';
     } else if (currentWagered < 1000000) {
       const rem = Math.max(0, Math.round(1000000 - currentWagered));
       const pct = Math.min(100, Math.max(4, ((currentWagered - 500000) / 500000) * 100));
       orb.className = 'rank-orb iron';
       lbl.innerText = 'Iron → Gold';
-      left.innerText = `еще ${formatNum(rem)} G`;
+      left.innerText = `еще ${formatNum(rem)}`;
       fill.style.width = pct + '%';
     } else {
       orb.className = 'rank-orb gold';
       lbl.innerText = 'Gold League';
-      left.innerText = `${formatNum(Math.round(currentWagered))} G`;
+      left.innerText = `${formatNum(Math.round(currentWagered))}`;
       fill.style.width = '100%';
     }
   }
 
   function setBalanceUI(bal, wag) {
     currentBalance = bal;
+    const tonVal = (bal * TON_PER_GRAM).toFixed(4);
     document.getElementById('topBalance').innerText = bal.toFixed(2);
     document.getElementById('profBalance').innerText = bal.toFixed(2);
+    document.getElementById('profTonEq').innerText = `≈ ${tonVal} TON`;
+    document.getElementById('popoverTonVal').innerText = `${tonVal} TON`;
     if (wag !== undefined) {
       currentWagered = wag;
       updateRankUI();
@@ -550,15 +584,14 @@
       if (data.history && data.history.length) {
         document.getElementById('myHistoryList').innerHTML = data.history.map(h => `
           <div class="hist-row">
-            <span>${h.game} (${h.bet} G)</span>
-            <span style="color:${h.win > 0 ? '#22c55e' : '#ef4444'}; font-weight:700;">${h.win > 0 ? '+' + h.win + ' G' : '-' + h.bet + ' G'}</span>
+            <span>${h.game} (${h.bet})</span>
+            <span style="color:${h.win > 0 ? '#22c55e' : '#ef4444'}; font-weight:700;">${h.win > 0 ? '+' + h.win : '-' + h.bet}</span>
           </div>
         `).join('');
       }
     } catch (e) {}
   }
 
-  // Авто-обновление баланса каждые 3 секунды (если админ выдал или списал GRAM)
   setInterval(() => {
     if (!isSpinning && !crashRunning) loadUser();
   }, 3000);
@@ -589,17 +622,18 @@
   function recalc() {
     const bet = parseFloat(document.getElementById('betInput').value) || 0;
     const winSum = (bet * currentMult).toFixed(2);
+    const winTon = (bet * currentMult * TON_PER_GRAM).toFixed(3);
     document.getElementById('wheelMultText').innerText = '×' + currentMult.toFixed(1);
     const chance = getVisualChance();
     document.getElementById('chanceVal').innerText = chance.toFixed(1) + ' %';
     document.getElementById('wheelOuter').style.background = `conic-gradient(#8b5cf6 0% ${chance}%, rgba(255,255,255,0.07) ${chance}% 100%)`;
-    document.getElementById('winPreviewSub').innerText = `Выигрыш: ${winSum} GRAM`;
+    document.getElementById('winPreviewSub').innerText = `Выигрыш: ${winSum} GRAM (${winTon} TON)`;
   }
 
   async function playUpgrade() {
     if (isSpinning) return;
     const bet = parseFloat(document.getElementById('betInput').value);
-    if (!bet || bet < 0.05) return notifyUser('Минимальная ставка 0.05 GRAM');
+    if (!bet || bet < 0.05) return notifyUser('Минимальная ставка 0.05');
 
     isSpinning = true;
     document.getElementById('playBtn').disabled = true;
@@ -664,7 +698,7 @@
   function onCustomCrash(val) {
     if (crashRunning) return;
     const t = parseFloat(val);
-    if (!t || t < 1.1 || t > 100) return;
+    if (!t || t < 1.1 || t > 20) return;
     crashTarget = t;
     document.querySelectorAll('#scr-crash .m-chip').forEach(b => b.classList.remove('active'));
     document.getElementById('crashSub').innerText = `Цель: ${t.toFixed(2)}x`;
@@ -703,7 +737,7 @@
   async function playCrash() {
     if (crashRunning) return;
     const bet = parseFloat(document.getElementById('crashBetInp').value);
-    if (!bet || bet < 0.05) return notifyUser('Минимальная ставка 0.05 GRAM');
+    if (!bet || bet < 0.05) return notifyUser('Минимальная ставка 0.05');
 
     crashRunning = true;
     document.getElementById('crashBtn').disabled = true;
@@ -761,7 +795,7 @@
     }
   }
 
-  // --- MINES 5x5 LOGIC ---
+  // --- BOMBS 5x5 LOGIC ---
   function buildMinesGrid() {
     const grid = document.getElementById('minesGrid');
     grid.innerHTML = '';
@@ -804,7 +838,7 @@
     }
 
     const bet = parseFloat(document.getElementById('minesBetInp').value);
-    if (!bet || bet < 0.05) return notifyUser('Минимальная ставка 0.05 GRAM');
+    if (!bet || bet < 0.05) return notifyUser('Минимальная ставка 0.05');
 
     try {
       const res = await fetch('/api/mines/start', {
@@ -878,12 +912,14 @@
     }
   }
 
-  // --- TOPUP (TRANSFER TO @rubupgift) ---
+  // --- TOPUP ---
   function openTopup() {
+    hideTonPopover();
     updateTopupInstruction();
     document.getElementById('topupModal').style.display = 'flex';
   }
   function openWithdraw() {
+    hideTonPopover();
     document.getElementById('withdrawModal').style.display = 'flex';
   }
   function closeModal(id) {
@@ -897,9 +933,10 @@
 
   function updateTopupInstruction() {
     const gram = parseFloat(document.getElementById('customGramDepInp').value) || 40;
+    const ton = (gram * TON_PER_GRAM).toFixed(2);
     const stars = Math.round(gram * 100);
-    document.getElementById('transferHeadline').innerText = `Передайте @${adminUsername} ${gram} GRAM или ${stars} звёзд`;
-    const msg = encodeURIComponent(`Привет! Хочу пополнить баланс RubUP на ${gram} GRAM (${stars} звёзд).`);
+    document.getElementById('transferHeadline').innerText = `Передайте @${adminUsername} ${gram} GRAM (${ton} TON) или ${stars} звёзд`;
+    const msg = encodeURIComponent(`Привет! Хочу пополнить баланс RubUP на ${gram} GRAM (${ton} TON / ${stars} звёзд).`);
     document.getElementById('topupTgLink').href = `https://t.me/${adminUsername}?text=${msg}`;
   }
 
@@ -917,7 +954,7 @@
     const amount = parseFloat(document.getElementById('wdAmountInp').value);
     const txDetails = document.getElementById('wdTxInp').value.trim();
     if (!amount || amount <= 0) return notifyUser('Укажи сумму вывода');
-    if (!txDetails) return notifyUser('Впиши номер транзакции или реквизиты');
+    if (!txDetails) return notifyUser('Впиши номер транзакции или TON кошелек');
 
     const btn = document.getElementById('btnSubmitWd');
     btn.disabled = true;
