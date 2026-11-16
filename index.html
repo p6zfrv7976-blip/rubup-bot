@@ -1148,10 +1148,6 @@
   const urlParams = new URLSearchParams(window.location.search);
   const queryUid = urlParams.get('uid');
   const querySig = urlParams.get('sig');
-  if (queryUid) localStorage.setItem('rubup_uid', queryUid);
-  if (querySig) localStorage.setItem('rubup_sig', querySig);
-  const savedUid = localStorage.getItem('rubup_uid') || "";
-  const savedSig = localStorage.getItem('rubup_sig') || "";
 
   let audioCtx = null;
   function playUiTone(freq, type = 'sine', dur = 0.05, vol = 0.04) {
@@ -1224,14 +1220,22 @@
 
   function getAuthPayload(extra = {}) {
     const unsafeUser = (tg.initDataUnsafe && tg.initDataUnsafe.user) ? tg.initDataUnsafe.user : null;
-    if (unsafeUser && unsafeUser.id) {
-      localStorage.setItem('rubup_uid', String(unsafeUser.id));
-    }
+    const realUid = (unsafeUser && unsafeUser.id)
+      ? String(unsafeUser.id)
+      : (queryUid || localStorage.getItem('rubup_uid') || "");
+
+    if (realUid) localStorage.setItem('rubup_uid', realUid);
+    if (querySig) localStorage.setItem('rubup_sig', querySig);
+
+    const effectiveSig = (unsafeUser && unsafeUser.id && queryUid && String(unsafeUser.id) !== queryUid)
+      ? ""
+      : (querySig || localStorage.getItem('rubup_sig') || "");
+
     return Object.assign({
       initData: tg.initData || "",
       user: unsafeUser,
-      uid: (unsafeUser && unsafeUser.id) ? unsafeUser.id : (localStorage.getItem('rubup_uid') || savedUid),
-      sig: localStorage.getItem('rubup_sig') || savedSig
+      uid: realUid,
+      sig: effectiveSig
     }, extra);
   }
 
