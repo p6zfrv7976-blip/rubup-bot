@@ -28,7 +28,7 @@ WEBAPP_URL = "https://rubup-borohezh.mia0.amvera.tech"
 OWNER_USERNAME = "rubupgift"
 STARS_PER_GRAM = 100.0
 X2_MAX_DEPOSIT_GRAM = 5000.0
-MAX_SINGLE_WIN_GRAM = 25000.0  # Жёсткий потолок выигрыша за 1 ставку (защита от 30 млн)
+MAX_SINGLE_WIN_GRAM = 25000.0
 
 session = AiohttpSession(
     api=TelegramAPIServer.from_base(OCEANGRAM_API)
@@ -304,7 +304,6 @@ async def update_balance(user_id: int, delta: float, add_wager: float = 0.0) -> 
 
 
 def extract_webapp_user(data: dict) -> dict:
-    # 1. Криптографическая проверка подписи Telegram/OceanGram initData
     init_data = data.get("initData", "")
     if init_data:
         try:
@@ -319,7 +318,6 @@ def extract_webapp_user(data: dict) -> dict:
         except Exception:
             pass
 
-    # 2. Проверка подписанного uid (если OceanGram обрезал initData)
     uid_raw = str(data.get("uid", ""))
     sig_raw = str(data.get("sig", ""))
     if uid_raw.isdigit() and int(uid_raw) > 0:
@@ -332,7 +330,6 @@ def extract_webapp_user(data: dict) -> dict:
                 "first_name": fallback_user.get("first_name", "Игрок")
             }
 
-    # 3. Fallback для старых кнопок без sig (только если передан user объект из Telegram.WebApp)
     fallback_user = data.get("user")
     if isinstance(fallback_user, dict) and str(fallback_user.get("id", "")).isdigit():
         return fallback_user
@@ -392,7 +389,7 @@ async def cmd_start(message: types.Message):
     try:
         await bot.set_chat_menu_button(
             chat_id=message.chat.id,
-            menu_button=MenuButtonWebApp(text="Открыть RubUP", web_app=WebAppInfo(url=personal_url))
+            menu_button=MenuButtonWebApp(text="RubUP", web_app=WebAppInfo(url=personal_url))
         )
     except Exception:
         pass
@@ -401,7 +398,7 @@ async def cmd_start(message: types.Message):
         [InlineKeyboardButton(text="🚀 Открыть RubUP", web_app=WebAppInfo(url=personal_url))]
     ])
     await message.answer(
-        "Добро пожаловать в <b>RubUP</b>!\nЖми кнопку ниже, чтобы запустить игру:",
+        "Добро пожаловать в <b>RubUP</b>!\nЖми кнопку <b>RubUP</b> внизу слева или кнопку ниже:",
         reply_markup=kb,
         parse_mode="HTML"
     )
@@ -668,23 +665,19 @@ async def resolve_target_user_id(target_raw: str) -> int | None:
         return int(clean)
 
     async with aiosqlite.connect("oceangram_rubup.db") as db:
-        # 1. Ищем в users_gram (без учёта регистра и @)
         async with db.execute("SELECT user_id FROM users_gram WHERE LOWER(REPLACE(TRIM(username), '@', '')) = LOWER(?)", (clean,)) as cur:
             r = await cur.fetchone()
             if r:
                 return int(r[0])
-        # 2. Ищем в заявках на вывод
         async with db.execute("SELECT user_id FROM withdrawals WHERE LOWER(REPLACE(TRIM(username), '@', '')) = LOWER(?) LIMIT 1", (clean,)) as cur:
             r = await cur.fetchone()
             if r:
                 return int(r[0])
-        # 3. Ищем среди админов
         async with db.execute("SELECT user_id FROM admins WHERE LOWER(REPLACE(TRIM(username), '@', '')) = LOWER(?) AND user_id > 0", (clean,)) as cur:
             r = await cur.fetchone()
             if r:
                 return int(r[0])
 
-    # 4. Пробуем получить чат напрямую через OceanGram Bot API
     try:
         chat = await bot.get_chat(f"@{clean}")
         if chat and chat.id:
@@ -899,7 +892,6 @@ async def msg_broadcast(message: types.Message, state: FSMContext):
     sent, failed = 0, 0
     status_msg = await message.answer(f"⏳ Отправка ({len(users)} чел.)...")
 
-    # Используем прямые методы send_message/send_photo вместо copy_to для полной совместимости с OceanGram
     text_content = message.html_text if (message.text or message.caption) else ""
     photo_id = message.photo[-1].file_id if message.photo else None
     video_id = message.video.file_id if message.video else None
@@ -1164,7 +1156,7 @@ async def api_mines_start(request: Request):
 
     async with user_locks[uid]:
         if uid in active_mines:
-            raise HTTPException(status_code=400, detail="У тебя уже есть активная игра в Шторм")
+            raise HTTPException(status_code=400, detail="У тебя уже есть активная игра в Бомбы")
         u = await ensure_user(uid, user_obj.get("username", ""), fname)
         if bet > u["balance"]:
             raise HTTPException(status_code=400, detail="Недостаточно GRAM")
@@ -1203,7 +1195,7 @@ async def api_mines_step(request: Request):
         if cell in game["bomb_set"]:
             bombs_list = list(game["bomb_set"])
             del active_mines[uid]
-            await record_game_event(uid, "Шторм", game["bet"], 0.0, 0.0)
+            await record_game_event(uid, "Бомбы", game["bet"], 0.0, 0.0)
             u = await ensure_user(uid)
             return {"boom": True, "bombs": bombs_list, "balance": u["balance"]}
 
@@ -1216,7 +1208,7 @@ async def api_mines_step(request: Request):
             bombs_list = list(game["bomb_set"])
             del active_mines[uid]
             new_bal, _ = await update_balance(uid, win_now)
-            await record_game_event(uid, "Шторм", game["bet"], cur_mult, win_now)
+            await record_game_event(uid, "Бомбы", game["bet"], cur_mult, win_now)
             return {"boom": False, "finished": True, "bombs": bombs_list, "mult": cur_mult, "win_amount": win_now, "balance": new_bal}
 
         return {"boom": False, "finished": False, "mult": cur_mult, "next_mult": next_mult, "win_amount": win_now}
@@ -1237,12 +1229,12 @@ async def api_mines_cashout(request: Request):
         bombs_list = list(game["bomb_set"])
         del active_mines[uid]
         new_bal, _ = await update_balance(uid, win_now)
-        await record_game_event(uid, "Шторм", game["bet"], cur_mult, win_now)
+        await record_game_event(uid, "Бомбы", game["bet"], cur_mult, win_now)
         return {"ok": True, "bombs": bombs_list, "mult": cur_mult, "win_amount": win_now, "balance": new_bal}
 
 
 async def run_polling_forever():
-    await asyncio.sleep(2.0)  # Ждём завершения старого контейнера на Amvera
+    await asyncio.sleep(2.0)
     while True:
         try:
             await dp.start_polling(bot, drop_pending_updates=True)
