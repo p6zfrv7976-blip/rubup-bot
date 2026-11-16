@@ -45,6 +45,84 @@
     z-index: 90;
   }
 
+  /* Экран обязательной подписки */
+  .sub-gate {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(13, 12, 24, 0.96);
+    backdrop-filter: blur(22px);
+    -webkit-backdrop-filter: blur(22px);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .sub-card {
+    background: #1d1c2e;
+    border: 1px solid rgba(124, 93, 250, 0.35);
+    border-radius: 28px;
+    padding: 26px 22px;
+    max-width: 390px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.65), 0 0 30px rgba(124, 93, 250, 0.2);
+    animation: fadeIn 0.25s ease;
+  }
+  .sub-icon-wrap {
+    width: 66px;
+    height: 66px;
+    border-radius: 22px;
+    background: linear-gradient(135deg, rgba(139, 108, 246, 0.22), rgba(0, 152, 234, 0.22));
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 16px;
+    font-size: 32px;
+  }
+  .sub-title {
+    font-size: 21px;
+    font-weight: 900;
+    margin-bottom: 8px;
+  }
+  .sub-desc {
+    font-size: 13px;
+    color: #94a3b8;
+    line-height: 1.45;
+    margin-bottom: 20px;
+  }
+  .sub-desc b {
+    color: #fff;
+  }
+  .btn-sub-go {
+    display: block;
+    width: 100%;
+    background: linear-gradient(135deg, #8b6cf6, #6d4aff);
+    color: #fff;
+    text-decoration: none;
+    font-weight: 800;
+    font-size: 15px;
+    padding: 15px;
+    border-radius: 16px;
+    margin-bottom: 10px;
+    box-shadow: 0 8px 24px var(--purple-glow);
+  }
+  .btn-sub-check {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #fff;
+    font-weight: 800;
+    font-size: 15px;
+    padding: 14px;
+    border-radius: 16px;
+    cursor: pointer;
+    transition: transform 0.14s, opacity 0.2s;
+  }
+  .btn-sub-check:active { transform: scale(0.96); }
+  .btn-sub-check:disabled { opacity: 0.5; }
+
   /* Topbar в стиле RubUP */
   .topbar {
     display: flex;
@@ -720,6 +798,19 @@
 </head>
 <body onclick="hideTonPopover()">
 
+<!-- Экран обязательной подписки на @zelenskye -->
+<div class="sub-gate" id="subGate">
+  <div class="sub-card">
+    <div class="sub-icon-wrap">🔒</div>
+    <div class="sub-title">Подпишись на канал</div>
+    <div class="sub-desc">
+      Чтобы войти в <b>RubUP</b> и начать играть, подпишись на наш официальный канал <b>@zelenskye</b> и нажми кнопку проверки ниже.
+    </div>
+    <a href="https://t.me/zelenskye" target="_blank" class="btn-sub-go" onclick="haptic('light')">📢 Подписаться на @zelenskye</a>
+    <button class="btn-sub-check" id="btnVerifySub" onclick="recheckSubscription()">✅ Проверить подписку</button>
+  </div>
+</div>
+
 <canvas id="fxCanvas"></canvas>
 
 <!-- Векторный кристалл TON -->
@@ -780,7 +871,7 @@
     </div>
   </div>
 
-  <!-- SCREEN 2: UPGRADE (Как на референсе RubUP) -->
+  <!-- SCREEN 2: UPGRADE -->
   <div class="screen" id="scr-upgrade">
     <div class="game-top">
       <button class="btn-back" onclick="switchTab('games')">← Назад</button>
@@ -1167,6 +1258,24 @@
     return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
   }
 
+  function showSubGate(show) {
+    const gate = document.getElementById('subGate');
+    if (gate) gate.style.display = show ? 'flex' : 'none';
+  }
+
+  async function recheckSubscription() {
+    haptic('medium');
+    const btn = document.getElementById('btnVerifySub');
+    btn.disabled = true;
+    btn.innerText = '⏳ Проверяем подписку...';
+    const ok = await loadUser(true);
+    btn.disabled = false;
+    btn.innerText = '✅ Проверить подписку';
+    if (!ok) {
+      notifyUser('❌ Подписка на @zelenskye не найдена. Подпишись на канал и попробуй снова!');
+    }
+  }
+
   function toggleTonPopover(e) {
     e.stopPropagation();
     haptic('light');
@@ -1267,14 +1376,20 @@
     }
   }
 
-  async function loadUser() {
+  async function loadUser(isManualCheck = false) {
     try {
       const res = await fetch('/api/user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(getAuthPayload())
       });
-      if (!res.ok) return;
+      if (res.status === 403) {
+        showSubGate(true);
+        return false;
+      }
+      if (!res.ok) return false;
+
+      showSubGate(false);
       const data = await res.json();
       if (data.user_id) localStorage.setItem('rubup_uid', String(data.user_id));
       if (data.sig) localStorage.setItem('rubup_sig', String(data.sig));
@@ -1298,7 +1413,14 @@
           </div>
         `).join('');
       }
-    } catch (e) {}
+      if (isManualCheck) {
+        haptic('heavy');
+        playUiTone(760, 'sine', 0.2, 0.06);
+      }
+      return true;
+    } catch (e) {
+      return false;
+    }
   }
 
   setInterval(() => {
@@ -1389,6 +1511,12 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(getAuthPayload({ bet: bet, multiplier: currentMult }))
       });
+      if (res.status === 403) {
+        isSpinning = false;
+        document.getElementById('playBtn').disabled = false;
+        showSubGate(true);
+        return;
+      }
       const data = await res.json();
       if (!res.ok) {
         notifyUser(data.detail || 'Ошибка');
@@ -1532,6 +1660,12 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(getAuthPayload({ bet: bet, target_mult: crashTarget }))
       });
+      if (res.status === 403) {
+        crashRunning = false;
+        document.getElementById('crashBtn').disabled = false;
+        showSubGate(true);
+        return;
+      }
       const data = await res.json();
       if (!res.ok) {
         notifyUser(data.detail || 'Ошибка');
@@ -1640,6 +1774,10 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(getAuthPayload({ bet: bet, bombs: minesBombs }))
       });
+      if (res.status === 403) {
+        showSubGate(true);
+        return;
+      }
       const data = await res.json();
       if (!res.ok) return notifyUser(data.detail || 'Ошибка');
 
@@ -1765,6 +1903,11 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(getAuthPayload({ currency: wdCurrency, amount: amount, tx_details: txDetails }))
       });
+      if (res.status === 403) {
+        btn.disabled = false;
+        showSubGate(true);
+        return;
+      }
       const data = await res.json();
       btn.disabled = false;
       if (!res.ok) return notifyUser(data.detail || 'Ошибка вывода');
@@ -1796,6 +1939,11 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(getAuthPayload({ code: code }))
       });
+      if (res.status === 403) {
+        btn.disabled = false;
+        showSubGate(true);
+        return;
+      }
       const data = await res.json();
       btn.disabled = false;
       if (!res.ok) return notifyUser(data.detail || 'Промокод не найден');
