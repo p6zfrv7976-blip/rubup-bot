@@ -330,7 +330,7 @@ async def update_balance(user_id: int, delta: float, add_wager: float = 0.0) -> 
 
 
 def extract_webapp_user(data: dict) -> dict:
-    # 1. Приоритет: подписанный initData от клиента Telegram/OceanGram
+    # 1. Подписанный initData от клиента (самый надёжный источник)
     init_data = data.get("initData", "")
     if init_data:
         try:
@@ -345,25 +345,23 @@ def extract_webapp_user(data: dict) -> dict:
         except Exception:
             pass
 
-    # 2. Приоритет: реальный user из tg.initDataUnsafe.user (индивидуальный для каждого игрока)
+    # 2. Реальный объект user из клиента WebApp (индивидуальный для каждого пользователя)
     fallback_user = data.get("user")
     if isinstance(fallback_user, dict) and str(fallback_user.get("id", "")).isdigit():
         if int(fallback_user["id"]) > 0:
             return fallback_user
 
-    # 3. Запасной вариант: подписанный uid из личной ссылки /start
+    # 3. Личная подписанная ссылка из /start (?uid=...&sig=...)
     uid_raw = str(data.get("uid", ""))
     sig_raw = str(data.get("sig", ""))
-    if uid_raw.isdigit() and int(uid_raw) > 0:
-        uid_int = int(uid_raw)
-        if verify_uid_sig(uid_int, sig_raw):
-            return {
-                "id": uid_int,
-                "username": "",
-                "first_name": "Игрок"
-            }
+    if uid_raw.isdigit() and int(uid_raw) > 0 and verify_uid_sig(int(uid_raw), sig_raw):
+        return {
+            "id": int(uid_raw),
+            "username": "",
+            "first_name": "Игрок"
+        }
 
-    raise HTTPException(status_code=401, detail="Нажми /start в боте и открой через новую кнопку")
+    raise HTTPException(status_code=401, detail="Отправь /start в боте и открой игру по своей кнопке!")
 
 
 def admin_main_kb(owner: bool = False) -> InlineKeyboardMarkup:
@@ -406,10 +404,10 @@ async def send_welcome_with_app(chat_id: int, user_id: int):
     sig = make_uid_sig(user_id)
     personal_url = f"{WEBAPP_URL}?uid={user_id}&sig={sig}"
     try:
-        # Чистый URL в меню бота, чтобы каждый игрок заходил под своим ID
+        # Персональная кнопка меню в личке конкретного пользователя с ботом
         await bot.set_chat_menu_button(
             chat_id=chat_id,
-            menu_button=MenuButtonWebApp(text="RubUP", web_app=WebAppInfo(url=WEBAPP_URL))
+            menu_button=MenuButtonWebApp(text="RubUP", web_app=WebAppInfo(url=personal_url))
         )
     except Exception:
         pass
@@ -419,7 +417,7 @@ async def send_welcome_with_app(chat_id: int, user_id: int):
     ])
     await bot.send_message(
         chat_id=chat_id,
-        text="✅ Подписка подтверждена!\nДобро пожаловать в <b>RubUP</b> — жми кнопку ниже, чтобы открыть игру:",
+        text="✅ Подписка подтверждена!\nОткрой <b>RubUP</b> по своей персональной кнопке ниже:",
         reply_markup=kb,
         parse_mode="HTML"
     )
