@@ -17,7 +17,7 @@ from aiogram.filters import Command, CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, MenuButtonWebApp, WebAppInfo
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, MenuButtonDefault, MenuButtonWebApp, WebAppInfo
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
@@ -365,6 +365,7 @@ async def update_balance(user_id: int, delta: float, add_wager: float = 0.0) -> 
 
 
 def extract_webapp_user(data: dict) -> dict:
+    # 1. Подписанный initData от клиента (самый надёжный источник)
     init_data = data.get("initData", "")
     if init_data:
         try:
@@ -379,11 +380,13 @@ def extract_webapp_user(data: dict) -> dict:
         except Exception:
             pass
 
+    # 2. Реальный объект user из клиента WebApp (индивидуальный для каждого пользователя)
     fallback_user = data.get("user")
     if isinstance(fallback_user, dict) and str(fallback_user.get("id", "")).isdigit():
         if int(fallback_user["id"]) > 0:
             return fallback_user
 
+    # 3. Личная подписанная ссылка из /start (?uid=...&sig=...)
     uid_raw = str(data.get("uid", ""))
     sig_raw = str(data.get("sig", ""))
     if uid_raw.isdigit() and int(uid_raw) > 0 and verify_uid_sig(int(uid_raw), sig_raw):
@@ -437,6 +440,7 @@ async def send_welcome_with_app(chat_id: int, user_id: int):
     sig = make_uid_sig(user_id)
     personal_url = f"{WEBAPP_URL}?uid={user_id}&sig={sig}"
     try:
+        # Персональная кнопка меню в личке конкретного пользователя с ботом
         await bot.set_chat_menu_button(
             chat_id=chat_id,
             menu_button=MenuButtonWebApp(text="RubUP", web_app=WebAppInfo(url=personal_url))
@@ -909,7 +913,6 @@ async def msg_custom_chance(message: types.Message, state: FSMContext):
         await message.answer("Неверный формат. Введи число:")
 
 
-# --- СПИСОК ИГРОКОВ ДЛЯ ПЕРСОНАЛЬНЫХ ШАНСОВ ---
 @dp.callback_query(F.data.startswith("adm_uch_list_"))
 async def cb_adm_uch_list(call: types.CallbackQuery, state: FSMContext):
     if not await is_admin(call.from_user):
@@ -1251,7 +1254,15 @@ async def serve_webapp(request: Request):
     client_ip = request.client.host if request.client else "unknown"
     check_rate_limit(f"web_{client_ip}", max_calls=60, window=10.0)
     with open("index.html", "r", encoding="utf-8") as f:
-        return f.read()
+        content = f.read()
+    return HTMLResponse(
+        content=content,
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+            "Pragma": "no-cache",
+            "Expires": "0",
+        },
+    )
 
 
 @app.post("/api/user")
@@ -1577,6 +1588,11 @@ async def run_polling_forever():
 
 async def main():
     await init_db()
+    try:
+        # Сбрасываем глобальную общую кнопку меню, чтобы игроки входили только через личный /start
+        await bot.set_chat_menu_button(menu_button=MenuButtonDefault())
+    except Exception:
+        pass
     config = uvicorn.Config(app, host="0.0.0.0", port=8000, log_level="info")
     server = uvicorn.Server(config)
     await asyncio.gather(
