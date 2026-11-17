@@ -95,6 +95,7 @@ async def check_channel_sub(user_id: int) -> bool:
 
 class AdminStates(StatesGroup):
     waiting_chance = State()
+    waiting_user_chance = State()
     waiting_broadcast = State()
     waiting_promo_data = State()
     waiting_balance_edit = State()
@@ -153,13 +154,15 @@ async def init_db():
                 first_name TEXT DEFAULT 'Игрок',
                 balance REAL DEFAULT 0.0,
                 wagered REAL DEFAULT 0.0,
-                x2_dep_used INTEGER DEFAULT 0
+                x2_dep_used INTEGER DEFAULT 0,
+                custom_chance TEXT DEFAULT ''
             )
         """)
         for col_sql in [
             "ALTER TABLE users_gram ADD COLUMN username TEXT DEFAULT ''",
             "ALTER TABLE users_gram ADD COLUMN first_name TEXT DEFAULT 'Игрок'",
             "ALTER TABLE users_gram ADD COLUMN x2_dep_used INTEGER DEFAULT 0",
+            "ALTER TABLE users_gram ADD COLUMN custom_chance TEXT DEFAULT ''",
         ]:
             try:
                 await db.execute(col_sql)
@@ -226,6 +229,21 @@ async def init_db():
         await db.commit()
 
 
+def format_chance_label(val: str) -> str:
+    v = (val or "").strip()
+    if not v or v == "default":
+        return "Общий режим"
+    if v == "mode_1":
+        return "Режим 1 (Стандарт)"
+    if v == "auto":
+        return "Auto (Честный)"
+    if v == "0":
+        return "0% (Слив)"
+    if v == "100":
+        return "100% (Победа)"
+    return f"{v}%"
+
+
 async def is_first_two_eligible(user_id: int) -> bool:
     async with aiosqlite.connect(DB_PATH) as db:
         async with db.execute("SELECT user_id, x2_dep_used FROM users_gram ORDER BY ROWID ASC LIMIT 2") as cur:
@@ -269,8 +287,25 @@ async def set_custom_chance(val: str):
         await db.commit()
 
 
-async def resolve_win_chance(standard_chance: float) -> float:
-    mode = await get_custom_chance()
+async def get_user_custom_chance(user_id: int) -> str:
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute("SELECT custom_chance FROM users_gram WHERE user_id = ?", (user_id,)) as cur:
+            row = await cur.fetchone()
+            return (row[0] or "").strip() if row else ""
+
+
+async def set_user_custom_chance(user_id: int, val: str):
+    clean = "" if val in ("", "default") else val.strip()
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("INSERT OR IGNORE INTO users_gram (user_id, balance, wagered, x2_dep_used, custom_chance) VALUES (?, 0.0, 0.0, 0, '')", (user_id,))
+        await db.execute("UPDATE users_gram SET custom_chance = ? WHERE user_id = ?", (clean, user_id))
+        await db.commit()
+
+
+async def resolve_win_chance(standard_chance: float, user_id: int = 0) -> float:
+    user_mode = await get_user_custom_chance(user_id) if user_id else ""
+    mode = user_mode if user_mode else await get_custom_chance()
+
     if mode == "mode_1":
         spin_num = await next_spin_number()
         return standard_chance if (spin_num % 3 == 0) else 5.0
@@ -289,7 +324,7 @@ async def ensure_user(user_id: int, username: str = "", first_name: str = "Иг�
     clean_fname = (first_name or "").strip() or "Игрок"
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
-            "INSERT OR IGNORE INTO users_gram (user_id, username, first_name, balance, wagered, x2_dep_used) VALUES (?, ?, ?, 0.0, 0.0, 0)",
+            "INSERT OR IGNORE INTO users_gram (user_id, username, first_name, balance, wagered, x2_dep_used, custom_chance) VALUES (?, ?, ?, 0.0, 0.0, 0, '')",
             (user_id, clean_uname, clean_fname)
         )
         if clean_uname:
@@ -311,7 +346,7 @@ async def ensure_user(user_id: int, username: str = "", first_name: str = "Иг�
 
 async def update_balance(user_id: int, delta: float, add_wager: float = 0.0) -> tuple[float, float]:
     async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("INSERT OR IGNORE INTO users_gram (user_id, balance, wagered, x2_dep_used) VALUES (?, 0.0, 0.0, 0)", (user_id,))
+        await db.execute("INSERT OR IGNORE INTO users_gram (user_id, balance, wagered, x2_dep_used, custom_chance) VALUES (?, 0.0, 0.0, 0, '')", (user_id,))
         if delta < 0:
             cursor = await db.execute(
                 "UPDATE users_gram SET balance = round(balance + ?, 2), wagered = round(wagered + ?, 2) WHERE user_id = ? AND balance >= ?",
@@ -330,7 +365,6 @@ async def update_balance(user_id: int, delta: float, add_wager: float = 0.0) -> 
 
 
 def extract_webapp_user(data: dict) -> dict:
-    # 1. Подписанный initData от клиента (самый надёжный источник)
     init_data = data.get("initData", "")
     if init_data:
         try:
@@ -345,13 +379,11 @@ def extract_webapp_user(data: dict) -> dict:
         except Exception:
             pass
 
-    # 2. Реальный объект user из клиента WebApp (индивидуальный для каждого пользователя)
     fallback_user = data.get("user")
     if isinstance(fallback_user, dict) and str(fallback_user.get("id", "")).isdigit():
         if int(fallback_user["id"]) > 0:
             return fallback_user
 
-    # 3. Личная подписанная ссылка из /start (?uid=...&sig=...)
     uid_raw = str(data.get("uid", ""))
     sig_raw = str(data.get("sig", ""))
     if uid_raw.isdigit() and int(uid_raw) > 0 and verify_uid_sig(int(uid_raw), sig_raw):
@@ -369,7 +401,7 @@ def admin_main_kb(owner: bool = False) -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="💸 Ласт выводы", callback_data="adm_last_wd")],
         [InlineKeyboardButton(text="💰 Выдать / снять GRAM", callback_data="adm_bal_edit")],
         [InlineKeyboardButton(text="🎯 Статус X2 первых 2", callback_data="adm_x2_status")],
-        [InlineKeyboardButton(text="⚙️ Режим работы", callback_data="adm_chances")],
+        [InlineKeyboardButton(text="⚙️ Режим работы и шансы", callback_data="adm_chances")],
         [InlineKeyboardButton(text="🎁 Создать промокод", callback_data="adm_promo_new")],
         [InlineKeyboardButton(text="📋 Активные промокоды", callback_data="adm_promo_list")],
         [InlineKeyboardButton(text="📢 Рассылка", callback_data="adm_broadcast")],
@@ -384,11 +416,12 @@ def admin_main_kb(owner: bool = False) -> InlineKeyboardMarkup:
 
 def admin_chances_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Режим 1 (Стандарт)", callback_data="set_ch_mode_1")],
-        [InlineKeyboardButton(text="Режим 2 (0%)", callback_data="set_ch_0")],
-        [InlineKeyboardButton(text="Режим 3 (100% победа)", callback_data="set_ch_100")],
-        [InlineKeyboardButton(text="Режим 4 (Auto)", callback_data="set_ch_auto")],
-        [InlineKeyboardButton(text="✏️ Свой %", callback_data="set_ch_custom")],
+        [InlineKeyboardButton(text="👤 Личные шансы игроков (список)", callback_data="adm_uch_list_1")],
+        [InlineKeyboardButton(text="Режим 1 (Стандарт для всех)", callback_data="set_ch_mode_1")],
+        [InlineKeyboardButton(text="Режим 2 (0% для всех)", callback_data="set_ch_0")],
+        [InlineKeyboardButton(text="Режим 3 (100% победа для всех)", callback_data="set_ch_100")],
+        [InlineKeyboardButton(text="Режим 4 (Auto для всех)", callback_data="set_ch_auto")],
+        [InlineKeyboardButton(text="✏️ Свой % для всех", callback_data="set_ch_custom")],
         [InlineKeyboardButton(text="🔙 Назад", callback_data="adm_back")]
     ])
 
@@ -404,7 +437,6 @@ async def send_welcome_with_app(chat_id: int, user_id: int):
     sig = make_uid_sig(user_id)
     personal_url = f"{WEBAPP_URL}?uid={user_id}&sig={sig}"
     try:
-        # Персональная кнопка меню в личке конкретного пользователя с ботом
         await bot.set_chat_menu_button(
             chat_id=chat_id,
             menu_button=MenuButtonWebApp(text="RubUP", web_app=WebAppInfo(url=personal_url))
@@ -431,7 +463,7 @@ async def cmd_start(message: types.Message):
 
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
-            "INSERT OR IGNORE INTO users_gram (user_id, username, first_name, balance, wagered, x2_dep_used) VALUES (?, ?, ?, 0.0, 0.0, 0)",
+            "INSERT OR IGNORE INTO users_gram (user_id, username, first_name, balance, wagered, x2_dep_used, custom_chance) VALUES (?, ?, ?, 0.0, 0.0, 0, '')",
             (user_id, uname, fname)
         )
         await db.execute("UPDATE users_gram SET username = ?, first_name = ? WHERE user_id = ?", (uname, fname, user_id))
@@ -501,7 +533,7 @@ async def cmd_admin(message: types.Message, state: FSMContext):
     await state.clear()
     cur = await get_custom_chance()
     await message.answer(
-        f"👑 <b>Панель управления RubUP</b>\n\nАктивный профиль: <b>{cur}</b>",
+        f"👑 <b>Панель управления RubUP</b>\n\nАктивный общий профиль: <b>{format_chance_label(cur)}</b>",
         reply_markup=admin_main_kb(owner=is_owner(message.from_user)),
         parse_mode="HTML"
     )
@@ -514,7 +546,7 @@ async def cb_adm_back(call: types.CallbackQuery, state: FSMContext):
     await state.clear()
     cur = await get_custom_chance()
     await call.message.edit_text(
-        f"👑 <b>Панель управления RubUP</b>\n\nАктивный профиль: <b>{cur}</b>",
+        f"👑 <b>Панель управления RubUP</b>\n\nАктивный общий профиль: <b>{format_chance_label(cur)}</b>",
         reply_markup=admin_main_kb(owner=is_owner(call.from_user)),
         parse_mode="HTML"
     )
@@ -779,7 +811,7 @@ async def msg_bal_edit(message: types.Message, state: FSMContext):
 
     async with user_locks[uid]:
         async with aiosqlite.connect(DB_PATH) as db:
-            await db.execute("INSERT OR IGNORE INTO users_gram (user_id, balance, wagered, x2_dep_used) VALUES (?, 0.0, 0.0, 0)", (uid,))
+            await db.execute("INSERT OR IGNORE INTO users_gram (user_id, balance, wagered, x2_dep_used, custom_chance) VALUES (?, 0.0, 0.0, 0, '')", (uid,))
             await db.commit()
 
         x2_note = ""
@@ -822,12 +854,18 @@ async def msg_bal_edit(message: types.Message, state: FSMContext):
 
 
 @dp.callback_query(F.data == "adm_chances")
-async def cb_adm_chances(call: types.CallbackQuery):
+async def cb_adm_chances(call: types.CallbackQuery, state: FSMContext):
     if not await is_admin(call.from_user):
         return
+    await state.clear()
     cur = await get_custom_chance()
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute("SELECT COUNT(*) FROM users_gram WHERE custom_chance != '' AND custom_chance IS NOT NULL") as c:
+            personal_cnt = (await c.fetchone())[0]
     await call.message.edit_text(
-        f"⚙️ <b>Выбор профиля</b>\n\nТекущий: <b>{cur}</b>",
+        f"⚙️ <b>Настройка режимов и шансов</b>\n\n"
+        f"Общий режим для всех: <b>{format_chance_label(cur)}</b>\n"
+        f"Игроков с личным шансом: <b>{personal_cnt}</b>",
         reply_markup=admin_chances_kb(),
         parse_mode="HTML"
     )
@@ -841,18 +879,14 @@ async def cb_set_chance(call: types.CallbackQuery, state: FSMContext):
     if val == "custom":
         await state.set_state(AdminStates.waiting_chance)
         await call.message.edit_text(
-            "✏️ Введи значение от <b>0</b> до <b>100</b>:",
-            reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🔙 Отмена", callback_data="adm_back")]]),
+            "✏️ Введи общий шанс победы для всех игроков от <b>0</b> до <b>100</b>:",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="🔙 Отмена", callback_data="adm_chances")]]),
             parse_mode="HTML"
         )
         return
     await set_custom_chance(val)
-    await call.answer(f"Сохранено: {val}", show_alert=True)
-    await call.message.edit_text(
-        f"⚙️ <b>Выбор профиля</b>\n\nТекущий: <b>{val}</b>",
-        reply_markup=admin_chances_kb(),
-        parse_mode="HTML"
-    )
+    await call.answer(f"Общий режим: {format_chance_label(val)}", show_alert=True)
+    await cb_adm_chances(call, state)
 
 
 @dp.message(AdminStates.waiting_chance)
@@ -865,7 +899,7 @@ async def msg_custom_chance(message: types.Message, state: FSMContext):
             await set_custom_chance(str(val))
             await state.clear()
             await message.answer(
-                f"✅ Значение установлено: <b>{val}%</b>.",
+                f"✅ Общий шанс установлен: <b>{val}%</b>.",
                 reply_markup=admin_main_kb(owner=is_owner(message.from_user)),
                 parse_mode="HTML"
             )
@@ -873,6 +907,169 @@ async def msg_custom_chance(message: types.Message, state: FSMContext):
             await message.answer("Введи число от 0 до 100:")
     except ValueError:
         await message.answer("Неверный формат. Введи число:")
+
+
+# --- СПИСОК ИГРОКОВ ДЛЯ ПЕРСОНАЛЬНЫХ ШАНСОВ ---
+@dp.callback_query(F.data.startswith("adm_uch_list_"))
+async def cb_adm_uch_list(call: types.CallbackQuery, state: FSMContext):
+    if not await is_admin(call.from_user):
+        return
+    await state.clear()
+    try:
+        page = max(1, int(call.data.replace("adm_uch_list_", "")))
+    except ValueError:
+        page = 1
+
+    per_page = 8
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute("SELECT COUNT(*) FROM users_gram") as cur:
+            total_users = (await cur.fetchone())[0]
+        total_pages = max(1, math.ceil(total_users / per_page))
+        page = min(page, total_pages)
+        offset = (page - 1) * per_page
+
+        async with db.execute("""
+            SELECT user_id, username, first_name, balance, custom_chance
+            FROM users_gram
+            ORDER BY ROWID DESC LIMIT ? OFFSET ?
+        """, (per_page, offset)) as cur:
+            users = await cur.fetchall()
+
+    kb_rows = []
+    if not users:
+        text = "👤 <b>Личные шансы игроков</b>\n\nВ базе пока нет игроков."
+    else:
+        lines = []
+        for uid, uname, fname, bal, c_ch in users:
+            u_label = f"@{uname}" if uname else f"{fname} ({uid})"
+            ch_str = format_chance_label(c_ch)
+            lines.append(f"• <b>{u_label}</b> — {bal} G\n  └ Шанс: <b>{ch_str}</b>")
+            btn_name = f"@{uname}" if uname else f"ID {uid}"
+            short_ch = c_ch if c_ch else "общий"
+            kb_rows.append([
+                InlineKeyboardButton(
+                    text=f"👤 {btn_name} [{short_ch}]",
+                    callback_data=f"adm_uch_user_{uid}_{page}"
+                )
+            ])
+        text = (
+            f"👤 <b>Личные шансы игроков (Стр. {page}/{total_pages})</b>\n\n"
+            + "\n".join(lines)
+            + "\n\nВыбери игрока из списка, чтобы изменить его шанс:"
+        )
+
+    nav_row = []
+    if page > 1:
+        nav_row.append(InlineKeyboardButton(text="⬅️ Назад", callback_data=f"adm_uch_list_{page - 1}"))
+    if total_pages > 1:
+        nav_row.append(InlineKeyboardButton(text=f"📄 {page}/{total_pages}", callback_data=f"adm_uch_list_{page}"))
+    if page < total_pages:
+        nav_row.append(InlineKeyboardButton(text="Вперёд ➡️", callback_data=f"adm_uch_list_{page + 1}"))
+    if nav_row:
+        kb_rows.append(nav_row)
+
+    kb_rows.append([InlineKeyboardButton(text="🔙 Назад к режимам", callback_data="adm_chances")])
+    await call.message.edit_text(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=kb_rows), parse_mode="HTML")
+
+
+@dp.callback_query(F.data.startswith("adm_uch_user_"))
+async def cb_adm_uch_user(call: types.CallbackQuery, state: FSMContext):
+    if not await is_admin(call.from_user):
+        return
+    await state.clear()
+    parts = call.data.replace("adm_uch_user_", "").split("_")
+    target_uid = int(parts[0])
+    page = int(parts[1]) if len(parts) > 1 else 1
+
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute(
+            "SELECT username, first_name, balance, wagered, custom_chance FROM users_gram WHERE user_id = ?",
+            (target_uid,)
+        ) as cur:
+            row = await cur.fetchone()
+
+    if not row:
+        await call.answer("Игрок не найден", show_alert=True)
+        return
+
+    uname, fname, bal, wag, c_ch = row
+    global_ch = await get_custom_chance()
+    u_title = f"@{uname} (ID: <code>{target_uid}</code>)" if uname else f"{fname} (ID: <code>{target_uid}</code>)"
+
+    text = (
+        f"🎯 <b>Настройка шансов игрока</b>\n\n"
+        f"Игрок: {u_title}\n"
+        f"Баланс: <b>{bal} GRAM</b> | Оборот: <b>{wag} GRAM</b>\n\n"
+        f"Текущий личный шанс: <b>{format_chance_label(c_ch)}</b>\n"
+        f"<i>(Общий режим сервера: {format_chance_label(global_ch)})</i>"
+    )
+
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="✅ 100% (Победа)", callback_data=f"set_uch_{target_uid}_100_{page}"),
+            InlineKeyboardButton(text="❌ 0% (Слив)", callback_data=f"set_uch_{target_uid}_0_{page}")
+        ],
+        [
+            InlineKeyboardButton(text="⚖️ Auto (Честный)", callback_data=f"set_uch_{target_uid}_auto_{page}"),
+            InlineKeyboardButton(text="✏️ Свой %", callback_data=f"set_uch_{target_uid}_custom_{page}")
+        ],
+        [InlineKeyboardButton(text="🔄 Сбросить на общий режим", callback_data=f"set_uch_{target_uid}_default_{page}")],
+        [InlineKeyboardButton(text="🔙 К списку игроков", callback_data=f"adm_uch_list_{page}")]
+    ])
+    await call.message.edit_text(text, reply_markup=kb, parse_mode="HTML")
+
+
+@dp.callback_query(F.data.startswith("set_uch_"))
+async def cb_set_user_chance(call: types.CallbackQuery, state: FSMContext):
+    if not await is_admin(call.from_user):
+        return
+    parts = call.data.replace("set_uch_", "").split("_")
+    target_uid = int(parts[0])
+    val = parts[1]
+    page = int(parts[2]) if len(parts) > 2 else 1
+
+    if val == "custom":
+        await state.set_state(AdminStates.waiting_user_chance)
+        await state.update_data(target_uid=target_uid, return_page=page)
+        await call.message.edit_text(
+            f"✏️ Введи персональный шанс победы для игрока <code>{target_uid}</code> (число от <b>0</b> до <b>100</b>):",
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="🔙 Отмена", callback_data=f"adm_uch_user_{target_uid}_{page}")]
+            ]),
+            parse_mode="HTML"
+        )
+        return
+
+    await set_user_custom_chance(target_uid, val)
+    await call.answer(f"Установлено: {format_chance_label(val)}", show_alert=True)
+    call.data = f"adm_uch_user_{target_uid}_{page}"
+    await cb_adm_uch_user(call, state)
+
+
+@dp.message(AdminStates.waiting_user_chance)
+async def msg_user_custom_chance(message: types.Message, state: FSMContext):
+    if not await is_admin(message.from_user):
+        return
+    data = await state.get_data()
+    target_uid = int(data.get("target_uid", 0))
+    page = int(data.get("return_page", 1))
+    try:
+        val = float((message.text or "").replace(",", "."))
+        if math.isfinite(val) and 0 <= val <= 100:
+            await set_user_custom_chance(target_uid, str(val))
+            await state.clear()
+            await message.answer(
+                f"✅ Личный шанс для игрока <code>{target_uid}</code> установлен: <b>{val}%</b>.",
+                reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+                    [InlineKeyboardButton(text="👤 Открыть карточку игрока", callback_data=f"adm_uch_user_{target_uid}_{page}")],
+                    [InlineKeyboardButton(text="🔙 К списку игроков", callback_data=f"adm_uch_list_{page}")]
+                ]),
+                parse_mode="HTML"
+            )
+        else:
+            await message.answer("Введи число от 0 до 100:")
+    except ValueError:
+        await message.answer("Неверный формат. Введи число от 0 до 100:")
 
 
 @dp.callback_query(F.data == "adm_promo_new")
@@ -1191,7 +1388,7 @@ async def api_upgrade(request: Request):
         if bet > u["balance"]:
             raise HTTPException(status_code=400, detail="Недостаточно GRAM")
 
-        win_chance = await resolve_win_chance((100.0 / multiplier) * 0.95)
+        win_chance = await resolve_win_chance((100.0 / multiplier) * 0.95, user_id=uid)
         roll = secrets.randbelow(10000) / 100.0
 
         if win_chance >= 100.0 or (win_chance > 0 and roll < win_chance):
@@ -1234,7 +1431,7 @@ async def api_crash(request: Request):
         if bet > u["balance"]:
             raise HTTPException(status_code=400, detail="Недостаточно GRAM")
 
-        win_chance = await resolve_win_chance((100.0 / target_mult) * 0.95)
+        win_chance = await resolve_win_chance((100.0 / target_mult) * 0.95, user_id=uid)
         roll = secrets.randbelow(10000) / 100.0
 
         if win_chance >= 100.0 or (win_chance > 0 and roll < win_chance):
@@ -1320,7 +1517,8 @@ async def api_mines_step(request: Request):
         if not game or cell < 0 or cell >= 25 or cell in game["opened"]:
             raise HTTPException(status_code=400, detail="Неверный ход")
 
-        mode = await get_custom_chance()
+        user_mode = await get_user_custom_chance(uid)
+        mode = user_mode if user_mode else await get_custom_chance()
         if mode == "0":
             game["bomb_set"].add(cell)
 
