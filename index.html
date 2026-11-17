@@ -723,7 +723,8 @@
   }
   .prof-bal-lbl { text-align: center; font-size: 13px; color: #94a3b8; }
   .prof-bal-val { text-align: center; font-size: 36px; font-weight: 900; margin: 4px 0; display: flex; align-items: center; justify-content: center; gap: 8px; }
-  .prof-stars-sub { text-align: center; font-size: 15px; font-weight: 800; color: #facc15; margin-bottom: 16px; }
+  .prof-stars-sub { text-align: center; font-size: 15px; font-weight: 800; color: #facc15; margin-bottom: 4px; }
+  .prof-uid-sub { text-align: center; font-size: 11px; font-weight: 700; color: #64748b; margin-bottom: 14px; }
   .prof-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
   .btn-p-dep { background: linear-gradient(135deg, #8b6cf6, #6d4aff); border: none; color: #fff; font-weight: 800; font-size: 15px; padding: 13px; border-radius: 15px; cursor: pointer; }
   .btn-p-wd { background: rgba(255, 255, 255, 0.08); border: 1px solid var(--border-soft); color: #fff; font-weight: 800; font-size: 15px; padding: 13px; border-radius: 15px; cursor: pointer; }
@@ -798,15 +799,15 @@
 </head>
 <body onclick="hideTonPopover()">
 
-<!-- Экран обязательной подписки на @zelenskye -->
+<!-- Экран обязательной подписки / входа через /start -->
 <div class="sub-gate" id="subGate">
   <div class="sub-card">
     <div class="sub-icon-wrap">🔒</div>
-    <div class="sub-title">Подпишись на канал</div>
-    <div class="sub-desc">
+    <div class="sub-title" id="gateTitle">Подпишись на канал</div>
+    <div class="sub-desc" id="gateDesc">
       Чтобы войти в <b>RubUP</b> и начать играть, подпишись на наш официальный канал <b>@zelenskye</b> и нажми кнопку проверки ниже.
     </div>
-    <a href="https://t.me/zelenskye" target="_blank" class="btn-sub-go" onclick="haptic('light')">📢 Подписаться на @zelenskye</a>
+    <a href="https://t.me/zelenskye" target="_blank" class="btn-sub-go" id="gateLink" onclick="haptic('light')">📢 Подписаться на @zelenskye</a>
     <button class="btn-sub-check" id="btnVerifySub" onclick="recheckSubscription()">✅ Проверить подписку</button>
   </div>
 </div>
@@ -1045,6 +1046,7 @@
         <span id="profBalance">0.00</span>
       </div>
       <div class="prof-stars-sub" id="profStarsEq">= 0 ⭐️</div>
+      <div class="prof-uid-sub" id="profUidLabel">ID аккаунта: —</div>
       <div class="prof-btns">
         <button class="btn-p-dep" onclick="openTopup()">Пополнить</button>
         <button class="btn-p-wd" onclick="openWithdraw()">Вывести</button>
@@ -1223,7 +1225,6 @@
       ? tg.initDataUnsafe.user
       : null;
 
-    // Если клиент передал реального пользователя и он НЕ совпадает с uid из пересланной ссылки — игнорируем чужую ссылку
     const isForeignLink = unsafeUser && queryUid && String(unsafeUser.id) !== String(queryUid);
 
     return Object.assign({
@@ -1257,21 +1258,38 @@
     return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
   }
 
+  function showAuthGate() {
+    const gate = document.getElementById('subGate');
+    if (!gate) return;
+    document.getElementById('gateTitle').innerText = 'Открой через /start';
+    document.getElementById('gateDesc').innerHTML =
+      'Чтобы зайти в свой личный аккаунт <b>RubUP</b>, перейди в чат с ботом, отправь <b>/start</b> и нажми кнопку <b>«🚀 Открыть RubUP»</b>.';
+    document.getElementById('gateLink').style.display = 'none';
+    document.getElementById('btnVerifySub').innerText = '🔄 Проверить вход';
+    gate.style.display = 'flex';
+  }
+
   function showSubGate(show) {
     const gate = document.getElementById('subGate');
-    if (gate) gate.style.display = show ? 'flex' : 'none';
+    if (!gate) return;
+    document.getElementById('gateTitle').innerText = 'Подпишись на канал';
+    document.getElementById('gateDesc').innerHTML =
+      'Чтобы войти в <b>RubUP</b> и начать играть, подпишись на наш официальный канал <b>@zelenskye</b> и нажми кнопку проверки ниже.';
+    document.getElementById('gateLink').style.display = 'block';
+    document.getElementById('btnVerifySub').innerText = '✅ Проверить подписку';
+    gate.style.display = show ? 'flex' : 'none';
   }
 
   async function recheckSubscription() {
     haptic('medium');
     const btn = document.getElementById('btnVerifySub');
     btn.disabled = true;
-    btn.innerText = '⏳ Проверяем подписку...';
+    btn.innerText = '⏳ Проверяем...';
     const ok = await loadUser(true);
     btn.disabled = false;
     btn.innerText = '✅ Проверить подписку';
     if (!ok) {
-      notifyUser('❌ Подписка на @zelenskye не найдена. Подпишись на канал и попробуй снова!');
+      notifyUser('❌ Подписка на @zelenskye не найдена или приложение открыто не через /start.');
     }
   }
 
@@ -1382,6 +1400,10 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(getAuthPayload())
       });
+      if (res.status === 401) {
+        showAuthGate();
+        return false;
+      }
       if (res.status === 403) {
         showSubGate(true);
         return false;
@@ -1390,6 +1412,9 @@
 
       showSubGate(false);
       const data = await res.json();
+      if (data.user_id) {
+        document.getElementById('profUidLabel').innerText = `ID аккаунта: ${data.user_id}`;
+      }
       if (data.balance !== undefined) setBalanceUI(data.balance, data.wagered);
       if (data.admin_username) adminUsername = data.admin_username;
 
@@ -1508,6 +1533,12 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(getAuthPayload({ bet: bet, multiplier: currentMult }))
       });
+      if (res.status === 401) {
+        isSpinning = false;
+        document.getElementById('playBtn').disabled = false;
+        showAuthGate();
+        return;
+      }
       if (res.status === 403) {
         isSpinning = false;
         document.getElementById('playBtn').disabled = false;
@@ -1657,6 +1688,12 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(getAuthPayload({ bet: bet, target_mult: crashTarget }))
       });
+      if (res.status === 401) {
+        crashRunning = false;
+        document.getElementById('crashBtn').disabled = false;
+        showAuthGate();
+        return;
+      }
       if (res.status === 403) {
         crashRunning = false;
         document.getElementById('crashBtn').disabled = false;
@@ -1771,6 +1808,10 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(getAuthPayload({ bet: bet, bombs: minesBombs }))
       });
+      if (res.status === 401) {
+        showAuthGate();
+        return;
+      }
       if (res.status === 403) {
         showSubGate(true);
         return;
@@ -1900,6 +1941,11 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(getAuthPayload({ currency: wdCurrency, amount: amount, tx_details: txDetails }))
       });
+      if (res.status === 401) {
+        btn.disabled = false;
+        showAuthGate();
+        return;
+      }
       if (res.status === 403) {
         btn.disabled = false;
         showSubGate(true);
@@ -1936,6 +1982,11 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(getAuthPayload({ code: code }))
       });
+      if (res.status === 401) {
+        btn.disabled = false;
+        showAuthGate();
+        return;
+      }
       if (res.status === 403) {
         btn.disabled = false;
         showSubGate(true);
